@@ -1,3 +1,3 @@
 idf_component_register(SRCS "src/main.c" 
                        INCLUDE_DIRS "."
-                       REQUIRES driver spi_flash MX1508 Servo ahrs mpu9250)
+                       REQUIRES driver spi_flash nvs_flash esp_event esp_netif esp_wifi MX1508 Servo ahrs mpu9250)

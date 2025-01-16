@@ -15,8 +15,20 @@
 
 void app_main(void);
 
+// EEPROM storage
+#include "nvs_flash.h"
+#include "nvs.h"
+// ESP-NOW
+#include "esp_event.h"
+#include "esp_netif.h"
+#include "esp_wifi.h"
+#include "esp_mac.h"
+#include "esp_now.h"
+// Motor DC Drive and control
 #include "MX1508.h"
+// Servo control
 #include "Servo.h"
+// MPU9250 module
 #include "ahrs.h"
 #include "mpu9250.h"
 #include "calibrate.h"
