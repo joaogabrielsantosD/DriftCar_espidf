@@ -8,6 +8,7 @@
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_event.h"
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_system.h"
@@ -15,15 +16,15 @@
 
 void app_main(void);
 
+// Defs
+#include "hardware_defs.h"
 // EEPROM storage
 #include "nvs_flash.h"
 #include "nvs.h"
 // ESP-NOW
-#include "esp_event.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "esp_mac.h"
-#include "esp_now.h"
 // Motor DC Drive and control
 #include "MX1508.h"
 // Servo control
