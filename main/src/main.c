@@ -16,8 +16,6 @@
 
 void app_main(void);
 
-// Defs
-#include "hardware_defs.h"
 // EEPROM storage
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -35,23 +33,83 @@ void app_main(void);
 #include "calibrate.h"
 #include "common.h"
 
+#include "LEDs.h"
+
+void leda(void *arg);
+void ledb(void *arg);
+void ledc(void *arg);
+
 void app_main(void)
 {
     printf("Hello world!\n");
 
-    gpio_config_t LED = {
-        .pin_bit_mask = BIT(GPIO_NUM_2),
-        .mode = GPIO_MODE_INPUT_OUTPUT
-    };
-
-    if (gpio_config(&LED) == ESP_OK)
-        printf("DEU BOM\r\n");
-
+    StartLEDs();
     
+    xTaskCreatePinnedToCore(&leda, "dfa", 4096, NULL, 3, NULL, 1);
+    xTaskCreatePinnedToCore(&ledb, "sdg", 4096, NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(&ledc, "sdg", 4096, NULL, 5, NULL, 1);
 
-    while (1)
+    //while (1)
+    //{        
+        // gpio_set_level(LED_RED_PIN, HIGH);
+        // gpio_set_level(LED_GREEN_PIN, LOW);
+        // gpio_set_level(LED_BLUE_PIN, LOW);
+
+        // gpio_set_level(LED_RED_PIN, LOW);
+        // gpio_set_level(LED_GREEN_PIN, HIGH);
+        // gpio_set_level(LED_BLUE_PIN, LOW);
+
+        // gpio_set_level(LED_RED_PIN, LOW);
+        // gpio_set_level(LED_GREEN_PIN, LOW);
+        // gpio_set_level(LED_BLUE_PIN, HIGH);
+    //}
+}
+
+void leda(void *arg)
+{
+    while (true)
     {
-        gpio_set_level(GPIO_NUM_2, gpio_get_level(GPIO_NUM_2) ^ 1);
+        ESP_ERROR_CHECK(gpio_set_level(LED_HEADLIGHT_PIN, gpio_get_level(LED_HEADLIGHT_PIN) ^ 1));
+        ESP_ERROR_CHECK(gpio_set_level(LED_RIGHT_PIN, gpio_get_level(LED_RIGHT_PIN) ^ 1));
+        ESP_ERROR_CHECK(gpio_set_level(LED_LEFT_PIN, gpio_get_level(LED_LEFT_PIN) ^ 1));
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
+void ledb(void *arg)
+{
+    uint32_t i = 0;
+
+    while (true)
+    {
+        ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, i));
+        ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0));
+        
+        i += 25;
+        if (i >= 256) i = 0;
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
+void ledc(void *arg)
+{
+    uint32_t i = 0;
+
+    while (true)
+    {
+        ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, 255)); // Blue
+        ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1));
+        
+        ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 0)); // Red
+        ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2));
+
+        ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_3, 0)); // Green 
+        ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_3));
+
+        i += 25;
+        if (i >= 256) i = i;
+
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
