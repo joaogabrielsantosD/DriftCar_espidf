@@ -1,0 +1,3 @@
+[submodule "Examples/esp-mpu9250"]
+	path = Examples/esp-mpu9250
+	url = https://github.com/psiphi75/esp-mpu9250.git
