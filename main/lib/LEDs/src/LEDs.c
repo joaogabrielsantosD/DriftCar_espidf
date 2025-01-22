@@ -2,7 +2,7 @@
 
 void ConfigLEDs()
 {
-/*================================LED CONFIG====================================================*/
+/*================================GPIO CONFIG=================================================*/
     gpio_config_t LED_config = {
         .pin_bit_mask = BIT(LED_HEADLIGHT_PIN) | BIT(LED_RIGHT_PIN) | BIT(LED_LEFT_PIN),
         .mode         = GPIO_MODE,

@@ -27,8 +27,8 @@
 #define LED_RIGHT_PIN        GPIO_NUM_27
 #define LED_BRAKE_LIGHT_PIN  GPIO_NUM_32
 #define LED_HEADLIGHT_PIN    GPIO_NUM_2
-//#define LED_RED_PIN          GPIO_NUM_25 <----- DECRAPTED
-//#define LED_GREEN_PIN        GPIO_NUM_26 <----- DECRAPTED
-//#define LED_BLUE_PIN         GPIO_NUM_23 <----- DECRAPTED
+//#define LED_RED_PIN          GPIO_NUM_25 <----- DEPRECATED
+//#define LED_GREEN_PIN        GPIO_NUM_26 <----- DEPRECATED
+//#define LED_BLUE_PIN         GPIO_NUM_23 <----- DEPRECATED
 
 #endif
