@@ -20,7 +20,7 @@ void ConfigLEDs()
         .freq_hz         = FREQ_LED,               
         .speed_mode      = SPEED_MODE,
         .timer_num       = LED_TIMER,        
-        .clk_cfg         = CLK_FOR_LED         
+        .clk_cfg         = LEDC_CLOCK 
     };                               
 
     ESP_ERROR_CHECK(ledc_timer_config(&LEDs_ledc_timer));

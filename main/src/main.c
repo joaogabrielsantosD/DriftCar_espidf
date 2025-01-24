@@ -9,11 +9,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_event.h"
-
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_system.h"
-#include "driver/i2c.h"
 
 void app_main(void);
 
@@ -24,51 +22,30 @@ void app_main(void);
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "esp_mac.h"
-// Motor DC Drive and control
-#include "MX1508.h"
-// Servo control
-#include "Servo.h"
-// MPU9250 module
-#include "ahrs.h"
-#include "mpu9250.h"
-#include "calibrate.h"
-#include "common.h"
 
 #include "LEDs.h"
+#include "acc_gyr.h"
+#include "OtherThings.h"
 
-#define println() (printf("\r\n"))
-static const char *TAG = "MPU";
-
-/**
- * Transformation:
- *  - Rotate around Z axis 180 degrees
- *  - Rotate around X axis -90 degrees
- * @param  {object} s {x,y,z} sensor
- * @return {object}   {x,y,z} transformed
- */
-static void transform_accel_gyro(vector_t *v);
-
-/**
- * Transformation: to get magnetometer aligned
- * @param  {object} s {x,y,z} sensor
- * @return {object}   {x,y,z} transformed
- */
-static void transform_mag(vector_t *v);
+static const char *TAG = "DriftCar";
 
 /* Test functions */
 void leda(void *arg);
 void ledb(void *arg);
 void mpu_test(void *arg);
+void SOC_t(void *arg);
 
 void app_main(void)
 {
-    printf("Hello world!\n");
+    printf("Drift Car started");
 
     ConfigLEDs();
+    //Start_MotorDC();    
 
-    xTaskCreatePinnedToCore(&leda, "dfa", 4096, NULL, 3, NULL, 1);
-    xTaskCreatePinnedToCore(&ledb, "sdg", 4096, NULL, 3, NULL, 1);
-    xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 5, NULL, 1);
+    //xTaskCreatePinnedToCore(&leda, "dfa", 4096, NULL, 3, NULL, 1);
+    //xTaskCreatePinnedToCore(&ledb, "sdg", 4096, NULL, 3, NULL, 1);
+    //xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 3, NULL, 1);
+    xTaskCreatePinnedToCore(&SOC_t, "fgd", 4096, NULL, 5, NULL, 1);
 
     // while (1)
     //{
@@ -150,9 +127,9 @@ void mpu_test(void *arg)
         transform_accel_gyro(&vg);
         transform_mag(&vm);
 
-        ESP_LOGI(TAG, "After transform, accx: %2.3f, accy: %2.3f, accz: %2.3f\r\n", va.x, va.y, va.z);
-        ESP_LOGI(TAG, "After transform, gyrx: %2.3f, gyry: %2.3f, gyrz: %2.3f\r\n", vg.x, vg.y, vg.z);
-        ESP_LOGI(TAG, "After transform, magx: %2.3f, magy: %2.3f, magz: %2.3f\r\n", vm.x, vm.y, vm.z);
+        //ESP_LOGI(TAG, "After transform, accx: %2.3f, accy: %2.3f, accz: %2.3f\r\n", va.x, va.y, va.z);
+        //ESP_LOGI(TAG, "After transform, gyrx: %2.3f, gyry: %2.3f, gyrz: %2.3f\r\n", vg.x, vg.y, vg.z);
+        //ESP_LOGI(TAG, "After transform, magx: %2.3f, magy: %2.3f, magz: %2.3f\r\n", vm.x, vm.y, vm.z);
 
         // Apply the AHRS algorithm
         ahrs_update(DEG2RAD(vg.x), DEG2RAD(vg.y), DEG2RAD(vg.z), va.x, va.y, va.z, vm.x, vm.y, vm.z);
@@ -163,31 +140,39 @@ void mpu_test(void *arg)
 
         float heading, pitch, roll;
         ahrs_get_euler_in_degrees(&heading, &pitch, &roll);
-        ESP_LOGI(TAG, "heading: %2.3f°, pitch: %2.3f°, roll: %2.3f°, Temp %2.3f°C", heading, pitch, roll, temp);
+        //ESP_LOGI(TAG, "heading: %2.3f°, pitch: %2.3f°, roll: %2.3f°, Temp %2.3f°C", heading, pitch, roll, temp);
     
-        println();
+        //println();
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
-static void transform_accel_gyro(vector_t *v)
+void SOC_t(void *arg)
 {
-  float x = v->x;
-  float y = v->y;
-  float z = v->z;
+    const int SAMPLES = 50;
 
-  v->x = -x;
-  v->y = -z;
-  v->z = -y;
-}
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(SOC_ADC_CHANNEL, ADC_ATTEN_DB_0);
+    //adc_set_data_inv(ADC_UNIT_1, true);
 
-static void transform_mag(vector_t *v)
-{
-  float x = v->x;
-  float y = v->y;
-  float z = v->z;
+    int val = 0;
+    
+    while (true)
+    {
+        //for (int i = 0; i < SAMPLES; i++)
+        //    val += adc1_get_raw(SOC_ADC_CHANNEL);
+        
+        //val /= SAMPLES;
+        //uint16_t v = (uint16_t)~adc1_get_raw(SOC_ADC_CHANNEL) & 0b0000111111111111;
+        uint16_t v = (uint16_t)adc1_get_raw(SOC_ADC_CHANNEL);
+        float vol = (v * 8.4) / 4095.0;
+        uint8_t por = (int)((vol * 100) / 8.4);
 
-  v->x = -y;
-  v->y =  z;
-  v->z = -x;
+        printf("Read: %d\r\n", v);
+        printf("Volt: %.2f\r\n", vol);
+        printf("Porc: %d\r\n", por);
+        println();
+        
+        vTaskDelay(pdMS_TO_TICKS(750));
+    } 
 }

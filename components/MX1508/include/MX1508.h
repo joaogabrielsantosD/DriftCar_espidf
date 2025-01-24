@@ -24,7 +24,8 @@ typedef struct
   long _maxpwm;                  // Max PWM Value of the Motor
 } PWM_values_t;
 
-void MX1508_init(MX1508_config_t *mx1508);
+void MX1508_init(gpio_config_t *outputpin, ledc_timer_config_t *timer_config,  \
+                ledc_channel_config_t *ch1, ledc_channel_config_t *ch2);
 
 void motorGo(long pwmVal); 
 void motorRev(long pwmVal);
