@@ -42,8 +42,8 @@ void app_main(void)
     ConfigLEDs();
     //Start_MotorDC();    
 
-    //xTaskCreatePinnedToCore(&leda, "dfa", 4096, NULL, 3, NULL, 1);
-    //xTaskCreatePinnedToCore(&ledb, "sdg", 4096, NULL, 3, NULL, 1);
+    xTaskCreatePinnedToCore(&leda, "dfa", 4096, NULL, 3, NULL, 1);
+    xTaskCreatePinnedToCore(&ledb, "sdg", 4096, NULL, 3, NULL, 1);
     //xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 3, NULL, 1);
     xTaskCreatePinnedToCore(&SOC_t, "fgd", 4096, NULL, 5, NULL, 1);
 
@@ -150,22 +150,24 @@ void mpu_test(void *arg)
 void SOC_t(void *arg)
 {
     const int SAMPLES = 50;
+    const float CALIBRATION_FACTOR = 1.068;
 
-    adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(SOC_ADC_CHANNEL, ADC_ATTEN_DB_0);
+    adc1_config_width(SOC_WIDTH);
+    adc1_config_channel_atten(SOC_ADC_CHANNEL, SOC_ATTENUATION);
     //adc_set_data_inv(ADC_UNIT_1, true);
 
     int val = 0;
-    
+
     while (true)
     {
-        //for (int i = 0; i < SAMPLES; i++)
-        //    val += adc1_get_raw(SOC_ADC_CHANNEL);
+        for (int i = 0; i < SAMPLES; i++)
+            val += adc1_get_raw(SOC_ADC_CHANNEL);
+        val /= SAMPLES;
         
-        //val /= SAMPLES;
+        uint16_t v = val;
         //uint16_t v = (uint16_t)~adc1_get_raw(SOC_ADC_CHANNEL) & 0b0000111111111111;
-        uint16_t v = (uint16_t)adc1_get_raw(SOC_ADC_CHANNEL);
-        float vol = (v * 8.4) / 4095.0;
+        //uint16_t v = (uint16_t)adc1_get_raw(SOC_ADC_CHANNEL);
+        float vol = ((v * 8.4) / 4095.0) * CALIBRATION_FACTOR;
         uint8_t por = (int)((vol * 100) / 8.4);
 
         printf("Read: %d\r\n", v);

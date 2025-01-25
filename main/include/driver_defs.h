@@ -38,5 +38,7 @@
 
 /* ADC channel */
 #define SOC_ADC_CHANNEL  ADC1_CHANNEL_6
+#define SOC_WIDTH        ADC_WIDTH_BIT_12
+#define SOC_ATTENUATION  ADC_ATTEN_DB_12
 
 #endif
