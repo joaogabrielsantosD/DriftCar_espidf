@@ -4,9 +4,11 @@
 // Motor DC Drive and control
 #include "MX1508.h"
 // Servo control
-#include "Servo.h"
 #include "hardware_defs.h"
 #include "driver_defs.h"
+//
+#include "esp_random.h"
+#include "math.h"
 
 void Start_MotorDC(void);
 
