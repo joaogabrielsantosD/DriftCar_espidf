@@ -26,6 +26,7 @@ void app_main(void);
 #include "LEDs.h"
 #include "acc_gyr.h"
 #include "OtherThings.h"
+#include "Servo.h"
 
 static const char *TAG = "DriftCar";
 
@@ -34,6 +35,7 @@ void leda(void *arg);
 void ledb(void *arg);
 void mpu_test(void *arg);
 void SOC_t(void *arg);
+void TestServo1(void *arg);
 
 void app_main(void)
 {
@@ -43,9 +45,10 @@ void app_main(void)
     //Start_MotorDC();    
 
     xTaskCreatePinnedToCore(&leda, "dfa", 4096, NULL, 3, NULL, 1);
-    xTaskCreatePinnedToCore(&ledb, "sdg", 4096, NULL, 3, NULL, 1);
+    //xTaskCreatePinnedToCore(&ledb, "sdg", 4096, NULL, 3, NULL, 1);
     //xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 3, NULL, 1);
-    xTaskCreatePinnedToCore(&SOC_t, "fgd", 4096, NULL, 5, NULL, 1);
+    //xTaskCreatePinnedToCore(&SOC_t, "fgd", 4096, NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(&TestServo1, "sds", 4096, NULL, 5, NULL, 1);
 
     // while (1)
     //{
@@ -177,4 +180,45 @@ void SOC_t(void *arg)
         
         vTaskDelay(pdMS_TO_TICKS(750));
     } 
+}
+
+void TestServo1(void *arg)
+{
+    servo_config_t Servos = {
+        .max_angle = 180,
+        .min_width_us = 500,
+        .max_width_us = 2500,
+        .freq = 50,
+        .timer_number = LEDC_TIMER_2,
+        .channels = {
+            .servo_pin = {
+                SERVO_STEERING_WHELL,
+                SERVO_HEAD_LIGHT,
+            },
+            .ch = {
+                LEDC_CHANNEL_3,
+                LEDC_CHANNEL_4,
+            },
+        },
+        .channel_number = 2
+    };
+
+    if (iot_servo_init(LEDC_LOW_SPEED_MODE, &Servos) == ESP_OK)
+        printf("DEU BOM");
+
+    while (true)
+    {
+        float read_angle1, read_angle2;
+        for (int i = 0; i < 180; i++)
+        {
+            iot_servo_write_angle(LEDC_LOW_SPEED_MODE, &Servos, LEDC_CHANNEL_3, i);
+            iot_servo_write_angle(LEDC_LOW_SPEED_MODE, &Servos, LEDC_CHANNEL_4, i);
+            vTaskDelay(20 / portTICK_PERIOD_MS);
+            iot_servo_read_angle(LEDC_LOW_SPEED_MODE, &Servos, LEDC_CHANNEL_3, &read_angle1);
+            iot_servo_read_angle(LEDC_LOW_SPEED_MODE, &Servos, LEDC_CHANNEL_4, &read_angle2);
+            ESP_LOGI(TAG, "[%d|%.2f|%.2f]", i, read_angle1, read_angle2);
+        }
+        //iot_servo_deinit(LEDC_LOW_SPEED_MODE, &Servos);
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
 }
