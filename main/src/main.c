@@ -26,63 +26,43 @@ void app_main(void);
 #include "LEDs.h"
 #include "acc_gyr.h"
 #include "OtherThings.h"
-#include "Servo.h"
+#include "iot_servo.h"
 
 static const char *TAG = "DriftCar";
 
 /* Test functions */
-void leda(void *arg);
-void ledb(void *arg);
+void led_test(void *arg);
 void mpu_test(void *arg);
-void SOC_t(void *arg);
-void TestServo1(void *arg);
+void SOC_test(void *arg);
+void servo_test(void *arg);
+void motor_test(void *arg);
 
 void app_main(void)
 {
     printf("Drift Car started");
 
-    ConfigLEDs();
     //Start_MotorDC();    
 
-    xTaskCreatePinnedToCore(&leda, "dfa", 4096, NULL, 3, NULL, 1);
+    xTaskCreatePinnedToCore(&led_test, "dfa", 4096, NULL, 3, NULL, 1);
     //xTaskCreatePinnedToCore(&ledb, "sdg", 4096, NULL, 3, NULL, 1);
     //xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 3, NULL, 1);
-    //xTaskCreatePinnedToCore(&SOC_t, "fgd", 4096, NULL, 5, NULL, 1);
-    xTaskCreatePinnedToCore(&TestServo1, "sds", 4096, NULL, 5, NULL, 1);
-
-    // while (1)
-    //{
-    //  gpio_set_level(LED_RED_PIN, HIGH);
-    //  gpio_set_level(LED_GREEN_PIN, LOW);
-    //  gpio_set_level(LED_BLUE_PIN, LOW);
-
-    // gpio_set_level(LED_RED_PIN, LOW);
-    // gpio_set_level(LED_GREEN_PIN, HIGH);
-    // gpio_set_level(LED_BLUE_PIN, LOW);
-
-    // gpio_set_level(LED_RED_PIN, LOW);
-    // gpio_set_level(LED_GREEN_PIN, LOW);
-    // gpio_set_level(LED_BLUE_PIN, HIGH);
-    //}
+    //xTaskCreatePinnedToCore(&SOC_test, "fgd", 4096, NULL, 5, NULL, 1);
+    //xTaskCreatePinnedToCore(&servo_test, "sds", 4096, NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(&motor_test, "motor", 4096, NULL, 5, NULL, 1);
 }
 
-void leda(void *arg)
+void led_test(void *arg)
 {
+    int i = 0;
+
+    ConfigLEDs();
+
     while (true)
     {
         ESP_ERROR_CHECK(gpio_set_level(LED_HEADLIGHT_PIN, gpio_get_level(LED_HEADLIGHT_PIN) ^ 1));
         ESP_ERROR_CHECK(gpio_set_level(LED_RIGHT_PIN, gpio_get_level(LED_RIGHT_PIN) ^ 1));
         ESP_ERROR_CHECK(gpio_set_level(LED_LEFT_PIN, gpio_get_level(LED_LEFT_PIN) ^ 1));
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
-
-void ledb(void *arg)
-{
-    uint32_t i = 0;
-
-    while (true)
-    {
+        
         ESP_ERROR_CHECK(ledc_set_duty(SPEED_MODE, BRAKE_CHANNEL, i));
         ESP_ERROR_CHECK(ledc_update_duty(SPEED_MODE, BRAKE_CHANNEL));
 
@@ -90,7 +70,7 @@ void ledb(void *arg)
         if (i >= 256)
             i = 0;
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
@@ -150,7 +130,7 @@ void mpu_test(void *arg)
     }
 }
 
-void SOC_t(void *arg)
+void SOC_test(void *arg)
 {
     const int SAMPLES = 50;
     const float CALIBRATION_FACTOR = 1.068;
@@ -182,7 +162,7 @@ void SOC_t(void *arg)
     } 
 }
 
-void TestServo1(void *arg)
+void servo_test(void *arg)
 {
     servo_config_t Servos = {
         .max_angle = 180,
@@ -220,5 +200,13 @@ void TestServo1(void *arg)
         }
         //iot_servo_deinit(LEDC_LOW_SPEED_MODE, &Servos);
         vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+
+void motor_test(void *arg)
+{
+    while (true)
+    {
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
