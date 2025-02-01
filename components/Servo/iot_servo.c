@@ -1,4 +1,4 @@
-#include "Servo.h"
+#include "iot_servo.h"
 
 static const char *TAG = "servo";
 
