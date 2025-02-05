@@ -12,9 +12,7 @@
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_system.h"
-
-void app_main(void);
-
+/* User Libraries */
 // EEPROM storage
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -22,13 +20,19 @@ void app_main(void);
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "esp_mac.h"
-
+// lib
 #include "LEDs.h"
 #include "acc_gyr.h"
 #include "OtherThings.h"
 #include "iot_servo.h"
 
+/*********************************************************************************/
+//#define CHIP_INFO
+
 static const char *TAG = "DriftCar";
+static const char *VERSION = "0.0.0";
+
+void app_main(void);
 
 /* Test functions */
 void led_test(void *arg);
@@ -39,12 +43,35 @@ void motor_test(void *arg);
 
 void app_main(void)
 {
-    printf("Drift Car started");
+    ESP_LOGI(TAG, "Project Version: %s", VERSION);    
+
+    #ifdef CHIP_INFO
+        /* Get Chip Information */
+        esp_chip_info_t chip_info;
+        uint32_t flash_size;
+        esp_chip_info(&chip_info);
+
+        printf("This is %s chip with %d CPU core(s), %s%s%s%s, ",
+               CONFIG_IDF_TARGET,
+               chip_info.cores,
+               (chip_info.features & CHIP_FEATURE_WIFI_BGN) ? "WiFi/" : "",
+               (chip_info.features & CHIP_FEATURE_BT) ? "BT" : "",
+               (chip_info.features & CHIP_FEATURE_BLE) ? "BLE" : "",
+               (chip_info.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)" : "");
+        unsigned major_rev = chip_info.revision / 100;
+        unsigned minor_rev = chip_info.revision % 100;
+        printf("silicon revision v%d.%d, ", major_rev, minor_rev);
+        if (esp_flash_get_size(NULL, &flash_size) != ESP_OK)
+            printf("Get flash size failed");
+        printf("%" PRIu32 "MB %s flash\n", flash_size / (uint32_t)(1024 * 1024),
+        (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
+        printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
+        fflush(stdout);
+    #endif
 
     //Start_MotorDC();    
 
     xTaskCreatePinnedToCore(&led_test, "dfa", 4096, NULL, 3, NULL, 1);
-    //xTaskCreatePinnedToCore(&ledb, "sdg", 4096, NULL, 3, NULL, 1);
     //xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 3, NULL, 1);
     //xTaskCreatePinnedToCore(&SOC_test, "fgd", 4096, NULL, 5, NULL, 1);
     //xTaskCreatePinnedToCore(&servo_test, "sds", 4096, NULL, 5, NULL, 1);
@@ -165,25 +192,25 @@ void SOC_test(void *arg)
 void servo_test(void *arg)
 {
     servo_config_t Servos = {
-        .max_angle = 180,
-        .min_width_us = 500,
-        .max_width_us = 2500,
-        .freq = 50,
-        .timer_number = LEDC_TIMER_2,
+        .max_angle    = MAX_ANGLE,
+        .min_width_us = MIN_PULSEWIDTH,
+        .max_width_us = MAX_PULSEWIDTH,
+        .freq         = FREQ_SERVO,
+        .timer_number = SERVO_TIMER,
         .channels = {
             .servo_pin = {
                 SERVO_STEERING_WHELL,
                 SERVO_HEAD_LIGHT,
             },
             .ch = {
-                LEDC_CHANNEL_3,
-                LEDC_CHANNEL_4,
+                STEERING_CHANNEL,
+                HEADLIGHT_CHANNEL,
             },
         },
         .channel_number = 2
     };
 
-    if (iot_servo_init(LEDC_LOW_SPEED_MODE, &Servos) == ESP_OK)
+    if (iot_servo_init(SPEED_MODE, &Servos) == ESP_OK)
         printf("DEU BOM");
 
     while (true)
@@ -191,14 +218,14 @@ void servo_test(void *arg)
         float read_angle1, read_angle2;
         for (int i = 0; i < 180; i++)
         {
-            iot_servo_write_angle(LEDC_LOW_SPEED_MODE, &Servos, LEDC_CHANNEL_3, i);
-            iot_servo_write_angle(LEDC_LOW_SPEED_MODE, &Servos, LEDC_CHANNEL_4, i);
+            iot_servo_write_angle(SPEED_MODE, &Servos, STEERING_CHANNEL, i);
+            iot_servo_write_angle(SPEED_MODE, &Servos, HEADLIGHT_CHANNEL, i);
             vTaskDelay(20 / portTICK_PERIOD_MS);
-            iot_servo_read_angle(LEDC_LOW_SPEED_MODE, &Servos, LEDC_CHANNEL_3, &read_angle1);
-            iot_servo_read_angle(LEDC_LOW_SPEED_MODE, &Servos, LEDC_CHANNEL_4, &read_angle2);
+            iot_servo_read_angle(SPEED_MODE, &Servos, STEERING_CHANNEL, &read_angle1);
+            iot_servo_read_angle(SPEED_MODE, &Servos, HEADLIGHT_CHANNEL, &read_angle2);
             ESP_LOGI(TAG, "[%d|%.2f|%.2f]", i, read_angle1, read_angle2);
         }
-        //iot_servo_deinit(LEDC_LOW_SPEED_MODE, &Servos);
+        //iot_servo_deinit(SPEED_MODE, &Servos);
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
@@ -207,6 +234,7 @@ void motor_test(void *arg)
 {
     while (true)
     {
+        printf("Test DC Motor");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
