@@ -57,7 +57,7 @@ esp_err_t iot_servo_init(ledc_mode_t speed_mode, const servo_config_t *config)
 
     ledc_timer_config_t ledc_timer = {
         .clk_cfg         = LEDC_AUTO_CLK,
-        .duty_resolution = SERVO_LEDC_INIT_BITS, // resolution of PWM duty
+        .duty_resolution = config->resolution,   // resolution of PWM duty
         .freq_hz         = config->freq,         // frequency of PWM signal
         .speed_mode      = speed_mode,           // timer mode
         .timer_num       = config->timer_number  // timer index
@@ -81,7 +81,7 @@ esp_err_t iot_servo_init(ledc_mode_t speed_mode, const servo_config_t *config)
         SERVO_CHECK(ESP_OK == ret, "ledc channel configuration failed", ESP_FAIL);
     }
 
-    g_full_duty = (1 << SERVO_LEDC_INIT_BITS) - 1;
+    g_full_duty = (1 << config->resolution) - 1;
     return ESP_OK;
 }
 

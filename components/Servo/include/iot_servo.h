@@ -20,13 +20,14 @@ typedef struct {
  *
  */
 typedef struct {
-    uint16_t max_angle;        /**< Servo max angle */
-    uint16_t min_width_us;     /**< Pulse width corresponding to minimum angle, which is usually 500us */
-    uint16_t max_width_us;     /**< Pulse width corresponding to maximum angle, which is usually 2500us */
-    uint32_t freq;             /**< PWM frequency */
-    ledc_timer_t timer_number; /**< Timer number of ledc */
-    servo_channel_t channels;  /**< Channels to use */
-    uint8_t channel_number;    /**< Total channel number */
+    uint16_t max_angle;          /**< Servo max angle */
+    uint16_t min_width_us;       /**< Pulse width corresponding to minimum angle, which is usually 500us */
+    uint16_t max_width_us;       /**< Pulse width corresponding to maximum angle, which is usually 2500us */
+    uint32_t freq;               /**< PWM frequency */
+    ledc_timer_t timer_number;   /**< Timer number of ledc */
+    ledc_timer_bit_t resolution; /**< PWM resolution */
+    servo_channel_t channels;    /**< Channels to use */
+    uint8_t channel_number;      /**< Total channel number */
 } servo_config_t;
 
 #ifdef __cplusplus
