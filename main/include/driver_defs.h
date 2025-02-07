@@ -3,9 +3,15 @@
 
 #include "driver/gpio.h"
 #include "driver/ledc.h"
-#include <driver/adc.h>
+#include "driver/adc.h"
+#include "esp_random.h"
+#include "esp_chip_info.h"
+#include "esp_flash.h"
+#include "esp_system.h"
+#include "math.h"
 
 #define println() (printf("\r\n"))
+#define delay(ms) (vTaskDelay(ms / portTICK_PERIOD_MS))
 
 /* GPIO defines */
 #define GPIO_MODE        GPIO_MODE_INPUT_OUTPUT
@@ -14,35 +20,37 @@
 #define GPIO_INTR_TYPE   GPIO_INTR_DISABLE
 
 /* LEDC defines */
-#define LED_RESOLUTION   LEDC_TIMER_8_BIT
-#define MOTOR_RESOLUTION LEDC_TIMER_16_BIT
-#define FREQ_LED         5000
 #define SPEED_MODE       LEDC_LOW_SPEED_MODE
 #define LEDC_CLOCK       LEDC_AUTO_CLK
 #define LEDC_INTR_TYPE   LEDC_INTR_DISABLE
 
 /* LEDs timers and channels */
+#define FREQ_LED         50
 #define LED_TIMER        LEDC_TIMER_0
+#define LED_RESOLUTION   LEDC_TIMER_16_BIT
 
 #define BRAKE_CHANNEL    LEDC_CHANNEL_0
-//#define RED_CHANNEL      LEDC_CHANNEL_1 <----- DEPRECATED
-//#define GREEN_CHANNEL    LEDC_CHANNEL_2 <----- DEPRECATED
-//#define BLUE_CHANNEL     LEDC_CHANNEL_3 <----- DEPRECATED
+// #define RED_CHANNEL      LEDC_CHANNEL_1 <----- DEPRECATED
+// #define GREEN_CHANNEL    LEDC_CHANNEL_2 <----- DEPRECATED
+// #define BLUE_CHANNEL     LEDC_CHANNEL_3 <----- DEPRECATED
 
 /* Motor timers and channels */
-#define MOTOR_MODE       GPIO_MODE_OUTPUT
+#define MOTOR_MAX_RPM    8700 // in 5 volts
 #define MOTOR_TIMER      LEDC_TIMER_1
+#define MOTOR_RESOLUTION LEDC_TIMER_10_BIT
+#define RPM_TO_DUTY(r)   ((int)((r * (pow(2, MOTOR_RESOLUTION) - 1)) / MOTOR_MAX_RPM))
+#define DUTY_TO_RPM(t)   ((int)((t * MOTOR_MAX_RPM) / (pow(2, MOTOR_RESOLUTION) - 1)))
 
 #define MOTOR_FOWARD_CHANNEL  LEDC_CHANNEL_1
 #define MOTOR_REVERSE_CHANNEL LEDC_CHANNEL_2
 
 /* Servo timers and channels */
-#define FREQ_SERVO      50
-#define MAX_ANGLE       180
-#define MAX_PULSEWIDTH  2500
-#define MIN_PULSEWIDTH  500
-
-#define SERVO_TIMER     LEDC_TIMER_2
+#define FREQ_SERVO        50
+#define MAX_ANGLE         180
+#define MAX_PULSEWIDTH    2500
+#define MIN_PULSEWIDTH    500
+#define SERVO_TIMER       LEDC_TIMER_2
+#define SERVO_RESOLUTION  LEDC_TIMER_10_BIT
 
 #define STEERING_CHANNEL  LEDC_CHANNEL_3
 #define HEADLIGHT_CHANNEL LEDC_CHANNEL_4

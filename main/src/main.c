@@ -9,9 +9,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_event.h"
-#include "esp_chip_info.h"
-#include "esp_flash.h"
-#include "esp_system.h"
 /* User Libraries */
 // EEPROM storage
 #include "nvs_flash.h"
@@ -21,10 +18,11 @@
 #include "esp_wifi.h"
 #include "esp_mac.h"
 // lib
-#include "LEDs.h"
 #include "acc_gyr.h"
-#include "OtherThings.h"
 #include "iot_servo.h"
+#include "MX1508.h"
+#include "hardware_defs.h"
+#include "driver_defs.h"
 
 /*********************************************************************************/
 //#define CHIP_INFO
@@ -69,8 +67,6 @@ void app_main(void)
         fflush(stdout);
     #endif
 
-    //Start_MotorDC();    
-
     xTaskCreatePinnedToCore(&led_test, "dfa", 4096, NULL, 3, NULL, 1);
     //xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 3, NULL, 1);
     //xTaskCreatePinnedToCore(&SOC_test, "fgd", 4096, NULL, 5, NULL, 1);
@@ -82,7 +78,37 @@ void led_test(void *arg)
 {
     int i = 0;
 
-    ConfigLEDs();
+    gpio_config_t LED_config = {
+        .pin_bit_mask = BIT(LED_HEADLIGHT_PIN) | BIT(LED_RIGHT_PIN) | BIT(LED_LEFT_PIN),
+        .mode         = GPIO_MODE,
+        .pull_up_en   = PULLUP_MODE,
+        .pull_down_en = PULLDOWN_MODE,
+        .intr_type    = GPIO_INTR_TYPE
+    };
+
+    ESP_ERROR_CHECK(gpio_config(&LED_config));
+
+    ledc_timer_config_t LEDs_ledc_timer = {         
+        .duty_resolution = LED_RESOLUTION,     
+        .freq_hz         = FREQ_LED,               
+        .speed_mode      = SPEED_MODE,
+        .timer_num       = LED_TIMER,        
+        .clk_cfg         = LEDC_CLOCK 
+    };                               
+
+    ESP_ERROR_CHECK(ledc_timer_config(&LEDs_ledc_timer));
+
+    ledc_channel_config_t brake_ledc_channel = {   
+        .speed_mode     = SPEED_MODE, 
+        .channel        = BRAKE_CHANNEL,      
+        .timer_sel      = LED_TIMER,        
+        .intr_type      = LEDC_INTR_TYPE,   
+        .gpio_num       = LED_BRAKE_LIGHT_PIN,   
+        .duty           = 0, // Set duty to 0% 
+        .hpoint         = 0                    
+    };                                
+
+    ESP_ERROR_CHECK(ledc_channel_config(&brake_ledc_channel));
 
     while (true)
     {
@@ -197,6 +223,7 @@ void servo_test(void *arg)
         .max_width_us = MAX_PULSEWIDTH,
         .freq         = FREQ_SERVO,
         .timer_number = SERVO_TIMER,
+        .resolution   = SERVO_RESOLUTION,
         .channels = {
             .servo_pin = {
                 SERVO_STEERING_WHELL,
@@ -225,16 +252,68 @@ void servo_test(void *arg)
             iot_servo_read_angle(SPEED_MODE, &Servos, HEADLIGHT_CHANNEL, &read_angle2);
             ESP_LOGI(TAG, "[%d|%.2f|%.2f]", i, read_angle1, read_angle2);
         }
-        //iot_servo_deinit(SPEED_MODE, &Servos);
+        // iot_servo_deinit(SPEED_MODE, &Servos);
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 
 void motor_test(void *arg)
 {
+    MX1508_config_t dc_motor = {
+        .freq         = 2500,
+        .timer_number = MOTOR_TIMER,
+        .resolution   = MOTOR_RESOLUTION,
+        .channels = {
+            .motor_pin = {
+                MOTOR_FOWARD_PIN,
+                MOTOR_REVERSE_PIN,
+            },
+            
+            .ch = {
+                MOTOR_FOWARD_CHANNEL,
+                MOTOR_REVERSE_CHANNEL,
+            },
+        },
+    };
+
+    if (MX1508_init(&dc_motor) == ESP_OK)
+        printf("Deu bom");
+    println();
+
     while (true)
     {
-        printf("Test DC Motor");
+        uint32_t read_duty1, read_duty2;
+        for (int i = 0; i < (1 << MOTOR_RESOLUTION) - 1; i += 50)
+        {
+            motorGo(i);
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            MX1508_read_duty(MOTOR_FOWARD_CHANNEL, &read_duty1);
+            MX1508_read_duty(MOTOR_REVERSE_CHANNEL, &read_duty2);
+            ESP_LOGI(TAG, "[%d|%ld|%ld]", i, read_duty1, read_duty2);
+        }
+
+        motorStop();
+        vTaskDelay(pdMS_TO_TICKS(200));
+
+        for (int i = 0; i < (1 << MOTOR_RESOLUTION) - 1; i += 50)
+        {
+            motorRev(i);
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            MX1508_read_duty(MOTOR_FOWARD_CHANNEL, &read_duty1);
+            MX1508_read_duty(MOTOR_REVERSE_CHANNEL, &read_duty2);
+            ESP_LOGI(TAG, "[%d|%ld|%ld]", i, read_duty1, read_duty2);
+        }
+
+        motorBrake();
+        vTaskDelay(pdMS_TO_TICKS(200));
+
+        uint32_t read_duty;
+        motorGo(RPM_TO_DUTY(MOTOR_MAX_RPM));
+        MX1508_read_duty(MOTOR_FOWARD_CHANNEL, &read_duty);
+        ESP_LOGI(TAG, "Duty em RPM: [%ld]", DUTY_TO_RPM(read_duty));
+
+        // MX1508_deinit(&dc_motor);
         vTaskDelay(pdMS_TO_TICKS(1000));
+        motorStop();
     }
 }
