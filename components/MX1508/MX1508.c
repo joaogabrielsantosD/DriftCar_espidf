@@ -18,7 +18,7 @@ esp_err_t MX1508_init(const MX1508_config_t *config)
     MX1508_CHECK(NULL != config, "Pointer of config is invalid", ESP_ERR_INVALID_ARG);   
 
     MX1508_CHECK(config->channel_number > 0 && config->channel_number <= MX1508_UNIT,
-    "Servo channel number out the range", ESP_ERR_INVALID_ARG);
+    "Motor channel number out the range", ESP_ERR_INVALID_ARG);
 
     // MX1508_CHECK(config->freq <= MOTOR_FREQ_MAX && config->freq >= MOTOR_FREQ_MIN,
     // "Servo pwm frequency out the range", ESP_ERR_INVALID_ARG);
@@ -64,7 +64,8 @@ esp_err_t MX1508_init(const MX1508_config_t *config)
 
     values._CH1    = config->channels.ch[0];
     values._CH2    = config->channels.ch[1];
-    values._maxpwm = (1 << config->resolution) - 1;
+    values._maxpwm = 1 << config->resolution;
+    ESP_LOGI(TAG, "RESOLUTION: %ld\r\n", values._maxpwm);
         
     return ESP_OK;
 }

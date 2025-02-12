@@ -29,7 +29,7 @@ typedef struct
   ledc_timer_t timer_number; /**< Timer number of ledc */
   ledc_timer_t resolution;   /**< Channel resolution */
   MX1508_channel_t channels; /**< Channels to use */
-  uint8_t channel_number: MX1508_UNIT; /**< Total channel number */
+  uint8_t channel_number;    /**< Total channel number */
 } MX1508_config_t;
 
 /**
