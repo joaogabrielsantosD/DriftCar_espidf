@@ -48,7 +48,7 @@ float calculate_angle(const servo_config_t *config, uint32_t duty);
  *     - ESP_ERR_INVALID_ARG Parameter error
  *     - ESP_FAIL Configure ledc failed
  */
-esp_err_t iot_servo_init(ledc_mode_t speed_mode, const servo_config_t *config);
+esp_err_t iot_servo_init(const servo_config_t *config);
 
 /**
  * @brief Deinitialize ledc for servo
@@ -58,7 +58,7 @@ esp_err_t iot_servo_init(ledc_mode_t speed_mode, const servo_config_t *config);
  * @return
  *     - ESP_OK Success
  */
-esp_err_t iot_servo_deinit(ledc_mode_t speed_mode, const servo_config_t *config);
+esp_err_t iot_servo_deinit(const servo_config_t *config);
 
 /**
  * @brief Set the servo motor to a certain angle
@@ -73,7 +73,7 @@ esp_err_t iot_servo_deinit(ledc_mode_t speed_mode, const servo_config_t *config)
  *     - ESP_OK Success
  *     - ESP_ERR_INVALID_ARG Parameter error
  */
-esp_err_t iot_servo_write_angle(ledc_mode_t speed_mode, servo_config_t *config, uint8_t channel, float angle);
+esp_err_t iot_servo_write_angle(servo_config_t *config, uint8_t channel, float angle);
 
 /**
  * @brief Read current angle of one channel
@@ -86,7 +86,7 @@ esp_err_t iot_servo_write_angle(ledc_mode_t speed_mode, servo_config_t *config, 
  *     - ESP_OK Success
  *     - ESP_ERR_INVALID_ARG Parameter error
  */
-esp_err_t iot_servo_read_angle(ledc_mode_t speed_mode, servo_config_t *config, uint8_t channel, float *angle);
+esp_err_t iot_servo_read_angle(servo_config_t *config, uint8_t channel, float *angle);
 
 #ifdef __cplusplus
 }
