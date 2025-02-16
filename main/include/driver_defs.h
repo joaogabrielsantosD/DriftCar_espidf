@@ -1,5 +1,5 @@
-#ifndef LEDC_DEFS_H
-#define LEDC_DEFS_H
+#ifndef DRIVER_DEFS_H
+#define DRIVER_DEFS_H
 
 #include "sdkconfig.h"
 #include "driver/gpio.h"
