@@ -6,11 +6,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-#include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_event.h"
 /* User Libraries */
+#include "leds.h"
 #include "acc_gyr.h"
 #include "iot_servo.h"
 #include "MX1508.h"
@@ -18,11 +18,17 @@
 #include "driver_defs.h"
 
 /*********************************************************************************/
-//#define CHIP_INFO
+// #define CHIP_INFO
+
+#ifdef CHIP_INFO
+#   include "esp_chip_info.h"
+#   include "esp_system.h"
+#   include "esp_flash.h"
+#endif
 
 static const char *TAG = "DriftCar";
 static const char *VERSION = "0.0.0";
-static uint8_t broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+static uint8_t broadcast_mac[ESP_NOW_ETH_ALEN] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 void app_main(void);
 
@@ -40,91 +46,70 @@ void espnow_test(void *arg);
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Project Version: %s", VERSION);    
+    ESP_LOGI(TAG, "Project Version: %s", VERSION);
 
-    #ifdef CHIP_INFO
-        /* Get Chip Information */
-        esp_chip_info_t chip_info;
-        uint32_t flash_size;
-        esp_chip_info(&chip_info);
+#ifdef CHIP_INFO
+    /* Get Chip Information */
+    esp_chip_info_t chip_info;
+    uint32_t flash_size;
+    esp_chip_info(&chip_info);
 
-        printf("This is %s chip with %d CPU core(s), %s%s%s%s, ",
-               CONFIG_IDF_TARGET,
-               chip_info.cores,
-               (chip_info.features & CHIP_FEATURE_WIFI_BGN) ? "WiFi/" : "",
-               (chip_info.features & CHIP_FEATURE_BT) ? "BT" : "",
-               (chip_info.features & CHIP_FEATURE_BLE) ? "BLE" : "",
-               (chip_info.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)" : "");
-        unsigned major_rev = chip_info.revision / 100;
-        unsigned minor_rev = chip_info.revision % 100;
-        printf("silicon revision v%d.%d, ", major_rev, minor_rev);
-        if (esp_flash_get_size(NULL, &flash_size) != ESP_OK)
-            printf("Get flash size failed");
-        printf("%" PRIu32 "MB %s flash\n", flash_size / (uint32_t)(1024 * 1024),
-        (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-        printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
-        fflush(stdout);
-    #endif
+    printf("This is %s chip with %d CPU core(s), %s%s%s%s, ",
+           CONFIG_IDF_TARGET,
+           chip_info.cores,
+           (chip_info.features & CHIP_FEATURE_WIFI_BGN) ? "WiFi/" : "",
+           (chip_info.features & CHIP_FEATURE_BT) ? "BT" : "",
+           (chip_info.features & CHIP_FEATURE_BLE) ? "BLE" : "",
+           (chip_info.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)" : "");
+    unsigned major_rev = chip_info.revision / 100;
+    unsigned minor_rev = chip_info.revision % 100;
+    printf("silicon revision v%d.%d, ", major_rev, minor_rev);
+    if (esp_flash_get_size(NULL, &flash_size) != ESP_OK)
+        printf("Get flash size failed");
+    printf("%" PRIu32 "MB %s flash\n", flash_size / (uint32_t)(1024 * 1024),
+           (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
+    printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
+    fflush(stdout);
+#endif
 
     xTaskCreatePinnedToCore(&led_test, "dfa", 4096, NULL, 3, NULL, 1);
-    //xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 3, NULL, 1);
-    //xTaskCreatePinnedToCore(&SOC_test, "fgd", 4096, NULL, 5, NULL, 1);
-    //xTaskCreatePinnedToCore(&servo_test, "sds", 4096, NULL, 5, NULL, 1);
-    xTaskCreatePinnedToCore(&motor_test, "motor", 4096, NULL, 5, NULL, 1);
-    //xTaskCreatePinnedToCore(&espnow_test, "wifi", 4096, NULL, 5, NULL, 0);
+    // xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 3, NULL, 1);
+    // xTaskCreatePinnedToCore(&SOC_test, "fgd", 4096, NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(&servo_test, "sds", 4096, NULL, 5, NULL, 1);
+    // xTaskCreatePinnedToCore(&motor_test, "motor", 4096, NULL, 5, NULL, 1);
+    // xTaskCreatePinnedToCore(&espnow_test, "wifi", 4096, NULL, 5, NULL, 0);
 }
 
 /* Core 0 */
 void led_test(void *arg)
 {
     int i = 0;
-
-    gpio_config_t LED_config = {
-        .pin_bit_mask = BIT(LED_HEADLIGHT_PIN) | BIT(LED_RIGHT_PIN) | BIT(LED_LEFT_PIN),
-        .mode         = GPIO_MODE,
-        .pull_up_en   = PULLUP_MODE,
-        .pull_down_en = PULLDOWN_MODE,
-        .intr_type    = GPIO_INTR_TYPE
-    };
-
-    ESP_ERROR_CHECK(gpio_config(&LED_config));
-
-    ledc_timer_config_t LEDs_ledc_timer = {         
-        .duty_resolution = LED_RESOLUTION,     
-        .freq_hz         = FREQ_LED,               
-        .speed_mode      = SPEED_MODE,
-        .timer_num       = LED_TIMER,        
-        .clk_cfg         = LEDC_CLOCK 
-    };                               
-
-    ESP_ERROR_CHECK(ledc_timer_config(&LEDs_ledc_timer));
-
-    ledc_channel_config_t brake_ledc_channel = {   
-        .speed_mode     = SPEED_MODE, 
-        .channel        = BRAKE_CHANNEL,      
-        .timer_sel      = LED_TIMER,        
-        .intr_type      = LEDC_INTR_TYPE,   
-        .gpio_num       = LED_BRAKE_LIGHT_PIN,   
-        .duty           = 0, // Set duty to 0% 
-        .hpoint         = 0                    
-    };                                
-
-    ESP_ERROR_CHECK(ledc_channel_config(&brake_ledc_channel));
+    LEDs_t leds = config_LEDs();
 
     while (true)
     {
-        gpio_set_level(LED_HEADLIGHT_PIN, gpio_get_level(LED_HEADLIGHT_PIN) ^ 1);
-        gpio_set_level(LED_RIGHT_PIN, gpio_get_level(LED_RIGHT_PIN) ^ 1);
-        gpio_set_level(LED_LEFT_PIN, gpio_get_level(LED_LEFT_PIN) ^ 1);
-        
-        ledc_set_duty(SPEED_MODE, BRAKE_CHANNEL, i);
-        ledc_update_duty(SPEED_MODE, BRAKE_CHANNEL);
+        leds.blinky(leds.HEADLIGHT_PIN);
+        leds.blinky(leds.RIGHT_PIN);
+        leds.blinky(leds.LEFT_PIN);
+
+        update_ledc_duty(&leds, i);
 
         i += 25;
         if (i >= 256)
             i = 0;
-
         vTaskDelay(pdMS_TO_TICKS(500));
+
+        leds.on(leds.HEADLIGHT_PIN);
+        leds.on(leds.RIGHT_PIN);
+        leds.on(leds.LEFT_PIN);
+        brake_on(&leds);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        leds.off(leds.HEADLIGHT_PIN);
+        leds.off(leds.RIGHT_PIN);
+        leds.off(leds.LEFT_PIN);
+        brake_off(&leds);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
@@ -138,9 +123,9 @@ void mpu_test(void *arg)
         .accel_scale_hi = {.x = 1.013558, .y = 1.011903, .z = 1.019645},
         .gyro_bias_offset = {.x = 0.303956, .y = -1.049768, .z = -0.403782}};
 
-    //calibrate_gyro();
-    //calibrate_accel();
-    //calibrate_mag();
+    // calibrate_gyro();
+    // calibrate_accel();
+    // calibrate_mag();
 
     vTaskDelay(pdMS_TO_TICKS(100));
 
@@ -155,31 +140,31 @@ void mpu_test(void *arg)
 
         // Get the Accelerometer, Gyroscope and Magnetometer values.
         ESP_ERROR_CHECK(get_accel_gyro_mag(&va, &vg, &vm));
-        //ESP_LOGI(TAG, "Before transform, accx: %2.3f, accy: %2.3f, accz: %2.3f\r\n", va.x, va.y, va.z);
-        //ESP_LOGI(TAG, "Before transform, gyrx: %2.3f, gyry: %2.3f, gyrz: %2.3f\r\n", vg.x, vg.y, vg.z);
-        //ESP_LOGI(TAG, "Before transform, magx: %2.3f, magy: %2.3f, magz: %2.3f\r\n", vm.x, vm.y, vm.z);
-    
+        // ESP_LOGI(TAG, "Before transform, accx: %2.3f, accy: %2.3f, accz: %2.3f\r\n", va.x, va.y, va.z);
+        // ESP_LOGI(TAG, "Before transform, gyrx: %2.3f, gyry: %2.3f, gyrz: %2.3f\r\n", vg.x, vg.y, vg.z);
+        // ESP_LOGI(TAG, "Before transform, magx: %2.3f, magy: %2.3f, magz: %2.3f\r\n", vm.x, vm.y, vm.z);
+
         // Transform these values to the orientation of our device.
         transform_accel_gyro(&va);
         transform_accel_gyro(&vg);
         transform_mag(&vm);
 
-        //ESP_LOGI(TAG, "After transform, accx: %2.3f, accy: %2.3f, accz: %2.3f\r\n", va.x, va.y, va.z);
-        //ESP_LOGI(TAG, "After transform, gyrx: %2.3f, gyry: %2.3f, gyrz: %2.3f\r\n", vg.x, vg.y, vg.z);
-        //ESP_LOGI(TAG, "After transform, magx: %2.3f, magy: %2.3f, magz: %2.3f\r\n", vm.x, vm.y, vm.z);
+        // ESP_LOGI(TAG, "After transform, accx: %2.3f, accy: %2.3f, accz: %2.3f\r\n", va.x, va.y, va.z);
+        // ESP_LOGI(TAG, "After transform, gyrx: %2.3f, gyry: %2.3f, gyrz: %2.3f\r\n", vg.x, vg.y, vg.z);
+        // ESP_LOGI(TAG, "After transform, magx: %2.3f, magy: %2.3f, magz: %2.3f\r\n", vm.x, vm.y, vm.z);
 
         // Apply the AHRS algorithm
         ahrs_update(DEG2RAD(vg.x), DEG2RAD(vg.y), DEG2RAD(vg.z), va.x, va.y, va.z, vm.x, vm.y, vm.z);
 
         float temp;
         ESP_ERROR_CHECK(get_temperature_celsius(&temp));
-        //printf("Temp: %f\r\n", temp);
+        // printf("Temp: %f\r\n", temp);
 
         float heading, pitch, roll;
         ahrs_get_euler_in_degrees(&heading, &pitch, &roll);
-        //ESP_LOGI(TAG, "heading: %2.3f°, pitch: %2.3f°, roll: %2.3f°, Temp %2.3f°C", heading, pitch, roll, temp);
-    
-        //println();
+        // ESP_LOGI(TAG, "heading: %2.3f°, pitch: %2.3f°, roll: %2.3f°, Temp %2.3f°C", heading, pitch, roll, temp);
+
+        // println();
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
@@ -191,7 +176,7 @@ void SOC_test(void *arg)
 
     adc1_config_width(SOC_WIDTH);
     adc1_config_channel_atten(SOC_ADC_CHANNEL, SOC_ATTENUATION);
-    //adc_set_data_inv(ADC_UNIT_1, true);
+    // adc_set_data_inv(ADC_UNIT_1, true);
 
     int val = 0;
 
@@ -200,10 +185,10 @@ void SOC_test(void *arg)
         for (int i = 0; i < SAMPLES; i++)
             val += adc1_get_raw(SOC_ADC_CHANNEL);
         val /= SAMPLES;
-        
+
         uint16_t v = val;
-        //uint16_t v = (uint16_t)~adc1_get_raw(SOC_ADC_CHANNEL) & 0b0000111111111111;
-        //uint16_t v = (uint16_t)adc1_get_raw(SOC_ADC_CHANNEL);
+        // uint16_t v = (uint16_t)~adc1_get_raw(SOC_ADC_CHANNEL) & 0b0000111111111111;
+        // uint16_t v = (uint16_t)adc1_get_raw(SOC_ADC_CHANNEL);
         float vol = ((v * 8.4) / 4095.0) * CALIBRATION_FACTOR;
         uint8_t por = (int)((vol * 100) / 8.4);
 
@@ -211,9 +196,9 @@ void SOC_test(void *arg)
         printf("Volt: %.2f\r\n", vol);
         printf("Porc: %d\r\n", por);
         println();
-        
+
         vTaskDelay(pdMS_TO_TICKS(750));
-    } 
+    }
 }
 
 void servo_test(void *arg)
@@ -344,7 +329,7 @@ void espnow_test(void *arg)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-    
+
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -354,10 +339,10 @@ void espnow_test(void *arg)
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_ERROR_CHECK(esp_wifi_set_channel(CONFIG_ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE));
 
-    #if CONFIG_ESPNOW_ENABLE_LONG_RANGE
-        ESP_ERROR_CHECK( esp_wifi_set_protocol(ESPNOW_WIFI_IF,                          \
-            WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N | WIFI_PROTOCOL_LR));
-    #endif
+#if CONFIG_ESPNOW_ENABLE_LONG_RANGE
+    ESP_ERROR_CHECK(esp_wifi_set_protocol(ESPNOW_WIFI_IF,
+                                          WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N | WIFI_PROTOCOL_LR));
+#endif
 
     uint8_t mac[6];
     esp_err_t mac_ret = esp_read_mac(mac, ESP_MAC_WIFI_STA);
@@ -365,17 +350,17 @@ void espnow_test(void *arg)
     if (mac_ret == ESP_OK)
         printf("MAC: [0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]\r\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     else
-       printf("Failed to get MAC address, error: %d\n", ret); 
-        
+        printf("Failed to get MAC address, error: %d\n", ret);
+
     /* Initialize ESPNOW and register sending and receiving callback function. */
     ESP_ERROR_CHECK(esp_now_init());
     ESP_ERROR_CHECK(esp_now_register_send_cb(espnow_send_cb));
     ESP_ERROR_CHECK(esp_now_register_recv_cb(espnow_recv_cb));
 
-    #if CONFIG_ESPNOW_ENABLE_POWER_SAVE
-        ESP_ERROR_CHECK(esp_now_set_wake_window(CONFIG_ESPNOW_WAKE_WINDOW));
-        ESP_ERROR_CHECK(esp_wifi_connectionless_module_set_wake_interval(CONFIG_ESPNOW_WAKE_INTERVAL));
-    #endif
+#if CONFIG_ESPNOW_ENABLE_POWER_SAVE
+    ESP_ERROR_CHECK(esp_now_set_wake_window(CONFIG_ESPNOW_WAKE_WINDOW));
+    ESP_ERROR_CHECK(esp_wifi_connectionless_module_set_wake_interval(CONFIG_ESPNOW_WAKE_INTERVAL));
+#endif
 
     /* Add broadcast peer information to peer list. */
     esp_now_peer_info_t *peer = malloc(sizeof(esp_now_peer_info_t));
@@ -387,43 +372,43 @@ void espnow_test(void *arg)
 
     memset(peer, 0, sizeof(esp_now_peer_info_t));
     peer->channel = CONFIG_ESPNOW_CHANNEL;
-    peer->ifidx   = ESPNOW_WIFI_IF;
+    peer->ifidx = ESPNOW_WIFI_IF;
     peer->encrypt = false;
-    peer->priv    = NULL;
+    peer->priv = NULL;
     memcpy(peer->peer_addr, broadcast_mac, ESP_NOW_ETH_ALEN);
-    #if ESP_NOW_PMK
-        /* Set primary master key. */
-        peer->encrypt = true;
-        uint8_t lmk[ESP_NOW_KEY_LEN] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x11, 0x22,
-                                        0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0x00};
-        ESP_ERROR_CHECK(esp_now_set_pmk((uint8_t *)lmk));
-        memcpy(peer->lmk, lmk, ESP_NOW_KEY_LEN);
-    #endif
+#if ESP_NOW_PMK
+    /* Set primary master key. */
+    peer->encrypt = true;
+    uint8_t lmk[ESP_NOW_KEY_LEN] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x11, 0x22,
+                                    0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0x00};
+    ESP_ERROR_CHECK(esp_now_set_pmk((uint8_t *)lmk));
+    memcpy(peer->lmk, lmk, ESP_NOW_KEY_LEN);
+#endif
 
     ESP_ERROR_CHECK(esp_now_add_peer(peer));
     free(peer);
 
     /* If MAC address does not exist in peer list, add it to peer list. */
-    if (esp_now_is_peer_exist(broadcast_mac) == false) 
+    if (esp_now_is_peer_exist(broadcast_mac) == false)
     {
         esp_now_peer_info_t *_peer = malloc(sizeof(esp_now_peer_info_t));
-        if (_peer == NULL) 
+        if (_peer == NULL)
         {
             ESP_LOGE(TAG, "Malloc peer information fail");
             vTaskDelete(NULL);
         }
         memset(_peer, 0, sizeof(esp_now_peer_info_t));
         _peer->channel = CONFIG_ESPNOW_CHANNEL;
-        _peer->ifidx   = ESPNOW_WIFI_IF;
+        _peer->ifidx = ESPNOW_WIFI_IF;
         _peer->encrypt = false;
-        #if ESP_NOW_PMK
-            /* Set primary master key. */
-            _peer->encrypt = true;
-            uint8_t _lmk[ESP_NOW_KEY_LEN] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x11, 0x22,
-                                             0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0x00};
-            ESP_ERROR_CHECK(esp_now_set_pmk((uint8_t *)_lmk));
-            memcpy(_peer->lmk, _lmk, ESP_NOW_KEY_LEN);
-        #endif
+#if ESP_NOW_PMK
+        /* Set primary master key. */
+        _peer->encrypt = true;
+        uint8_t _lmk[ESP_NOW_KEY_LEN] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x11, 0x22,
+                                         0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0x00};
+        ESP_ERROR_CHECK(esp_now_set_pmk((uint8_t *)_lmk));
+        memcpy(_peer->lmk, _lmk, ESP_NOW_KEY_LEN);
+#endif
         memcpy(_peer->peer_addr, broadcast_mac, ESP_NOW_ETH_ALEN);
         ESP_ERROR_CHECK(esp_now_add_peer(_peer));
         free(_peer);
@@ -434,7 +419,7 @@ void espnow_test(void *arg)
         uint64_t time = esp_timer_get_time() / 1000;
         uint8_t len = sizeof(time);
 
-        if (esp_now_send(broadcast_mac, (uint8_t*)&time, len) == ESP_OK)
+        if (esp_now_send(broadcast_mac, (uint8_t *)&time, len) == ESP_OK)
             printf("Enviado mensagem [%lld] de tamanho [%d]\r\n", time, len);
         else
             ESP_LOGE(TAG, "ESP-NOW Send Error");
@@ -446,7 +431,7 @@ void espnow_test(void *arg)
 /* Callbacks */
 static void espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
-    if (mac_addr == NULL) 
+    if (mac_addr == NULL)
     {
         ESP_LOGE(TAG, "Send cb arg error");
         return;
@@ -460,10 +445,10 @@ static void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *
     uint64_t rec_data = 0;
     uint8_t *mac_addr = recv_info->src_addr;
     uint8_t *des_addr = recv_info->des_addr;
-    
-    memcpy(&rec_data, (uint64_t*)data, sizeof(rec_data));
 
-    if (mac_addr == NULL || data == NULL || len <= 0) 
+    memcpy(&rec_data, (uint64_t *)data, sizeof(rec_data));
+
+    if (mac_addr == NULL || data == NULL || len <= 0)
     {
         ESP_LOGE(TAG, "Receive cb arg error");
         return;
@@ -474,11 +459,11 @@ static void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *
         printf("0x%x ", *(data + i));
     printf("]\r\n");
 
-    printf("DES_ADDr: [0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]", des_addr[0], des_addr[1], des_addr[2], \
-                                                        des_addr[3], des_addr[4], des_addr[5]);
+    printf("DES_ADDr: [0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]", des_addr[0], des_addr[1], des_addr[2],
+           des_addr[3], des_addr[4], des_addr[5]);
     println();
-    printf("SRC_ADDr: [0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]", mac_addr[0], mac_addr[1], mac_addr[2], \
-                                                        mac_addr[3], mac_addr[4], mac_addr[5]);
+    printf("SRC_ADDr: [0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]", mac_addr[0], mac_addr[1], mac_addr[2],
+           mac_addr[3], mac_addr[4], mac_addr[5]);
     println();
 
     ESP_LOGI(TAG, "Receive sucess, mesage: [%lld] | len message: [%d]\r\n", rec_data, len);

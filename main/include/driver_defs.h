@@ -2,15 +2,13 @@
 #define DRIVER_DEFS_H
 
 #include "sdkconfig.h"
-#include "driver/gpio.h"
-#include "driver/ledc.h"
-#include "driver/adc.h"
+#include "esp_log.h"
 #include "esp_random.h"
-#include "esp_chip_info.h"
-#include "esp_flash.h"
-#include "esp_system.h"
 #include "esp_timer.h"
 #include "math.h"
+#include "driver/ledc.h"
+
+#include "driver/adc.h"
 // EEPROM storage
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -22,27 +20,12 @@
 
 #define println() (printf("\r\n"))
 #define delay(ms) (vTaskDelay(pdMS_TO_TICKS(ms)))
-
-/* GPIO defines */
-#define GPIO_MODE        GPIO_MODE_INPUT_OUTPUT
-#define PULLUP_MODE      GPIO_PULLUP_DISABLE
-#define PULLDOWN_MODE    GPIO_PULLDOWN_DISABLE
-#define GPIO_INTR_TYPE   GPIO_INTR_DISABLE
+#define millis()  (esp_timer_get_time() / 1000)
 
 /* LEDC defines */
 #define SPEED_MODE       LEDC_LOW_SPEED_MODE
 #define LEDC_CLOCK       LEDC_AUTO_CLK
 #define LEDC_INTR_TYPE   LEDC_INTR_DISABLE
-
-/* LEDs timers and channels */
-#define FREQ_LED         50
-#define LED_TIMER        LEDC_TIMER_0
-#define LED_RESOLUTION   LEDC_TIMER_16_BIT
-
-#define BRAKE_CHANNEL    LEDC_CHANNEL_0
-// #define RED_CHANNEL      LEDC_CHANNEL_1 <----- DEPRECATED
-// #define GREEN_CHANNEL    LEDC_CHANNEL_2 <----- DEPRECATED
-// #define BLUE_CHANNEL     LEDC_CHANNEL_3 <----- DEPRECATED
 
 /* Motor timers and channels */
 #define MOTOR_MAX_RPM    8700 // in 5 volts
