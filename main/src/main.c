@@ -11,11 +11,10 @@
 #include "esp_event.h"
 /* User Libraries */
 #include "leds.h"
+#include "SOC.h"
 #include "acc_gyr.h"
 #include "iot_servo.h"
 #include "MX1508.h"
-#include "hardware_defs.h"
-#include "driver_defs.h"
 
 /*********************************************************************************/
 // #define CHIP_INFO
@@ -72,10 +71,10 @@ void app_main(void)
     fflush(stdout);
 #endif
 
-    xTaskCreatePinnedToCore(&led_test, "dfa", 4096, NULL, 3, NULL, 1);
+    // xTaskCreatePinnedToCore(&led_test, "led_test", 4096, NULL, 3, NULL, 1);
     // xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 3, NULL, 1);
-    // xTaskCreatePinnedToCore(&SOC_test, "fgd", 4096, NULL, 5, NULL, 1);
-    xTaskCreatePinnedToCore(&servo_test, "sds", 4096, NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(&SOC_test, "SOC_test", 4096, NULL, 5, NULL, 1);
+    // xTaskCreatePinnedToCore(&servo_test, "sds", 4096, NULL, 5, NULL, 1);
     // xTaskCreatePinnedToCore(&motor_test, "motor", 4096, NULL, 5, NULL, 1);
     // xTaskCreatePinnedToCore(&espnow_test, "wifi", 4096, NULL, 5, NULL, 0);
 }
@@ -83,33 +82,58 @@ void app_main(void)
 /* Core 0 */
 void led_test(void *arg)
 {
-    int i = 0;
-    LEDs_t leds = config_LEDs();
+    uint32_t i = 0;
+    uint8_t state = 0;
+    LEDs_t *leds = config_LEDs();
+    // LEDs_t leds = *(LEDs_t*)arg;
 
     while (true)
     {
-        leds.blinky(leds.HEADLIGHT_PIN);
-        leds.blinky(leds.RIGHT_PIN);
-        leds.blinky(leds.LEFT_PIN);
+        switch (state)
+        {
+            case 0:
+            {
+                printf("State 0: %ld\r\n", i);
+                leds->blinky(leds->HEADLIGHT_PIN);
+                leds->blinky(leds->RIGHT_PIN);
+                leds->blinky(leds->LEFT_PIN);
+        
+                update_brake_duty(leds, i);
+        
+                i += 255;
+                if (i >= (1UL << leds->duty_resolution))
+                {
+                    i = 0;
+                    state++;
+                }
+                vTaskDelay(pdMS_TO_TICKS(100));
+                break;
+            }
 
-        update_ledc_duty(&leds, i);
+            case 1:
+            {                
+                printf("State 1\r\n");
+                leds->on(leds->HEADLIGHT_PIN);
+                leds->on(leds->RIGHT_PIN);
+                leds->on(leds->LEFT_PIN);
+                brake_on(leds);
+                vTaskDelay(pdMS_TO_TICKS(2000));
+                state++;
+                break;
+            }
 
-        i += 25;
-        if (i >= 256)
-            i = 0;
-        vTaskDelay(pdMS_TO_TICKS(500));
-
-        leds.on(leds.HEADLIGHT_PIN);
-        leds.on(leds.RIGHT_PIN);
-        leds.on(leds.LEFT_PIN);
-        brake_on(&leds);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-        leds.off(leds.HEADLIGHT_PIN);
-        leds.off(leds.RIGHT_PIN);
-        leds.off(leds.LEFT_PIN);
-        brake_off(&leds);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+            case 2:
+            {
+                printf("State 2\r\n");
+                leds->off(leds->HEADLIGHT_PIN);
+                leds->off(leds->RIGHT_PIN);
+                leds->off(leds->LEFT_PIN);
+                brake_off(leds);
+                vTaskDelay(pdMS_TO_TICKS(2000));
+                state = 0;
+                break;
+            }
+        }
     }
 }
 
@@ -171,33 +195,28 @@ void mpu_test(void *arg)
 
 void SOC_test(void *arg)
 {
-    const int SAMPLES = 50;
-    const float CALIBRATION_FACTOR = 1.068;
-
-    adc1_config_width(SOC_WIDTH);
-    adc1_config_channel_atten(SOC_ADC_CHANNEL, SOC_ATTENUATION);
-    // adc_set_data_inv(ADC_UNIT_1, true);
-
-    int val = 0;
+    SOC_t *soc = SOC_init();
+    // const int SAMPLES = 50;
+    // const float CALIBRATION_FACTOR = 1.068;
 
     while (true)
     {
-        for (int i = 0; i < SAMPLES; i++)
-            val += adc1_get_raw(SOC_ADC_CHANNEL);
-        val /= SAMPLES;
+    //     for (int i = 0; i < SAMPLES; i++)
+    //         val += adc1_get_raw(SOC_ADC_CHANNEL);
+    //     val /= SAMPLES;
 
-        uint16_t v = val;
-        // uint16_t v = (uint16_t)~adc1_get_raw(SOC_ADC_CHANNEL) & 0b0000111111111111;
-        // uint16_t v = (uint16_t)adc1_get_raw(SOC_ADC_CHANNEL);
-        float vol = ((v * 8.4) / 4095.0) * CALIBRATION_FACTOR;
-        uint8_t por = (int)((vol * 100) / 8.4);
+    //     uint16_t v = val;
+    //     // uint16_t v = (uint16_t)~adc1_get_raw(SOC_ADC_CHANNEL) & 0b0000111111111111;
+    //     // uint16_t v = (uint16_t)adc1_get_raw(SOC_ADC_CHANNEL);
+    //     float vol = ((v * 8.4) / 4095.0) * CALIBRATION_FACTOR;
+    //     uint8_t por = (int)((vol * 100) / 8.4);
 
-        printf("Read: %d\r\n", v);
-        printf("Volt: %.2f\r\n", vol);
-        printf("Porc: %d\r\n", por);
-        println();
-
-        vTaskDelay(pdMS_TO_TICKS(750));
+    //     printf("Read: %d\r\n", v);
+    //     printf("Volt: %.2f\r\n", vol);
+    //     printf("Porc: %d\r\n", por);
+    //     println();
+        read_StateOfCharge(soc);
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 

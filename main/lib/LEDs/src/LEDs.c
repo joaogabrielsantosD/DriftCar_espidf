@@ -1,22 +1,32 @@
 #include "LEDs.h"
 
-const char *TAG    = "LEDs";
-const char *STATUS = "TEST";
+static const char *TAG    = "LEDs";
+static const char *STATUS = "TEST";
 
-LEDs_t config_LEDs(void)
+static LEDs_t leds_conf = {0};
+
+static esp_err_t blinky_led(gpio_num_t gpio_num);
+static esp_err_t on_led(gpio_num_t gpio_num);
+static esp_err_t off_led(gpio_num_t gpio_num);
+
+LEDs_t *config_LEDs(void)
 {
+    static bool init = false;
     ESP_LOGI(TAG, "LEDS Configuration: [%s]", STATUS);	
-    LEDs_t leds_conf;
+
+    if (init)
+        return &leds_conf;
 
     leds_conf.HEADLIGHT_PIN = LED_HEADLIGHT_PIN;
     leds_conf.RIGHT_PIN     = LED_RIGHT_PIN;
     leds_conf.LEFT_PIN      = LED_LEFT_PIN;
     leds_conf.BRAKE_PIN     = LED_BRAKE_LIGHT_PIN;
     
-    leds_conf.brake_channel = BRAKE_CHANNEL;
+    leds_conf.brake_channel   = BRAKE_CHANNEL;
+    leds_conf.duty_resolution = LED_RESOLUTION; 
 
     /* Configure the GPIO */
-    leds_conf.LED_config.pin_bit_mask = BIT(leds_conf.HEADLIGHT_PIN) | BIT(leds_conf.RIGHT_PIN) | BIT(leds_conf.LEFT_PIN);
+    leds_conf.LED_config.pin_bit_mask = BIT64(leds_conf.HEADLIGHT_PIN) | BIT64(leds_conf.RIGHT_PIN) | BIT64(leds_conf.LEFT_PIN);
     leds_conf.LED_config.mode         = GPIO_MODE;
     leds_conf.LED_config.pull_up_en   = PULLUP_MODE;
     leds_conf.LED_config.pull_down_en = PULLDOWN_MODE;
@@ -24,7 +34,7 @@ LEDs_t config_LEDs(void)
     ESP_ERROR_CHECK(gpio_config(&leds_conf.LED_config));
 
     /* Configure the Timer */
-    leds_conf.LEDs_ledc_timer.duty_resolution = LED_RESOLUTION;
+    leds_conf.LEDs_ledc_timer.duty_resolution = leds_conf.duty_resolution;
     leds_conf.LEDs_ledc_timer.freq_hz         = FREQ_LED;
     leds_conf.LEDs_ledc_timer.speed_mode      = SPEED_MODE;
     leds_conf.LEDs_ledc_timer.timer_num       = LED_TIMER;
@@ -46,43 +56,42 @@ LEDs_t config_LEDs(void)
     leds_conf.on     = on_led;
     leds_conf.off    = off_led;
 
-    return leds_conf;
+    init = true;
+    return &leds_conf;
 };
 
-esp_err_t blinky_led(gpio_num_t gpio_num)
+inline void brake_on(LEDs_t *leds)
+{
+    ledc_set_duty(SPEED_MODE, leds->brake_channel, (1 << leds->duty_resolution) - 1); // 100% duty
+    ledc_update_duty(SPEED_MODE, leds->brake_channel);
+}
+
+inline void brake_off(LEDs_t *leds)
+{
+    ledc_set_duty(SPEED_MODE, leds->brake_channel, (1 << leds->duty_resolution) / 4); // 25% duty
+    ledc_update_duty(SPEED_MODE, leds->brake_channel);
+}
+
+esp_err_t update_brake_duty(LEDs_t *leds, uint32_t duty)
+{
+    if (duty >= (1UL << leds->duty_resolution))
+        return ESP_ERR_INVALID_ARG;
+
+    ledc_set_duty(SPEED_MODE, leds->brake_channel, duty);
+    return ledc_update_duty(SPEED_MODE, leds->brake_channel);
+}
+
+inline static esp_err_t blinky_led(gpio_num_t gpio_num)
 {
     return gpio_set_level(gpio_num, gpio_get_level(gpio_num) ^ 1);
 }
 
-esp_err_t on_led(gpio_num_t gpio_num)
+inline static esp_err_t on_led(gpio_num_t gpio_num)
 {
     return gpio_set_level(gpio_num, HIGH);
 }
 
-esp_err_t off_led(gpio_num_t gpio_num)
+inline static esp_err_t off_led(gpio_num_t gpio_num)
 {
     return gpio_set_level(gpio_num, LOW);
-}
-
-void brake_on(LEDs_t *leds)
-{
-    ledc_set_duty(SPEED_MODE, leds->brake_channel, 255);
-    ledc_update_duty(SPEED_MODE, leds->brake_channel);
-}
-
-void brake_off(LEDs_t *leds)
-{
-    ledc_set_duty(SPEED_MODE, leds->brake_channel, 120);
-    ledc_update_duty(SPEED_MODE, leds->brake_channel);
-}
-
-esp_err_t update_ledc_duty(LEDs_t *leds, int duty)
-{
-    if (duty < 0 || duty > 255)
-        return ESP_ERR_INVALID_ARG;
-
-    if (ledc_set_duty(SPEED_MODE, leds->brake_channel, duty) == ESP_OK)
-        return ledc_update_duty(SPEED_MODE, leds->brake_channel);       
-    
-    return ESP_FAIL;
 }

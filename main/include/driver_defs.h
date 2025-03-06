@@ -8,7 +8,6 @@
 #include "math.h"
 #include "driver/ledc.h"
 
-#include "driver/adc.h"
 // EEPROM storage
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -47,11 +46,6 @@
 
 #define STEERING_CHANNEL  LEDC_CHANNEL_3
 #define HEADLIGHT_CHANNEL LEDC_CHANNEL_4
-
-/* ADC channel */
-#define SOC_ADC_CHANNEL  ADC1_CHANNEL_6
-#define SOC_WIDTH        ADC_WIDTH_BIT_12
-#define SOC_ATTENUATION  ADC_ATTEN_DB_12
 
 /* ESP-NOW Definitions */
 #if CONFIG_ESPNOW_WIFI_MODE_STATION
