@@ -23,7 +23,8 @@
 - Manufacturer: *JLCPCB*. ✔
 
 ### Power Line:
-- [ ] Definir Bateria;
+- [x] Definir Bateria;
+1. Lipo 2S/7.4v
 - [ ] Definir Como Será o carregamento da bateria;
 - [ ] Proteção ESD, polaridade reversa e fusível;
 - [ ] Regulador de tensão ```x -> 5``` volts + *Decoupling*;
