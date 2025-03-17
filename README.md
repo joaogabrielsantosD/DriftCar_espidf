@@ -3,9 +3,9 @@
 ## Firmware
 
 ### State Of Charge:
-- [ ] Definir metodo de aquisição e filtro, **tensão em 8.5 volts**;
-- [ ] Task para atualizar a tensão e porcentagem;
-- [ ] Garantir que o ponteiro atualize mesmo em outra task.
+- [x] Definir metodo de aquisição e filtro, **tensão em 8.5 volts**; ✔
+- [x] Task para atualizar a tensão e porcentagem; ✔
+- [x] Garantir que o ponteiro atualize mesmo em outra task. ✔
 
 ### ESP-NOW
 - [ ] Sincronização com o controle via ESP-NOW.

@@ -3,23 +3,25 @@
 
 #pragma once
 
-#include "string.h"
 #include "esp_adc/adc_oneshot.h"
 #include "driver_defs.h"
 
-#define VREF             8.5   // Volts
-#define VREF_MIN         6.0   // Volts
-#define R1               47000 // Ohms
-#define R2               30000 // Ohms
+#define VREF             8.40   // Volts
+#define VREF_MIN         6.00   // Volts
+#define R1               47     // K Ohms
+#define R2               30     // K Ohms
+#define SAMPLES          (25)   // Number of samples to average
 /* ADC channel */
 #define ADC_UNIT         ADC_UNIT_1
 #define SOC_ADC_CHANNEL  ADC_CHANNEL_6
 #define SOC_WIDTH        ADC_BITWIDTH_12
 #define SOC_ATTENUATION  ADC_ATTEN_DB_12
 
-typedef struct 
-{
+typedef struct  {
     int adc_value;
+    float voltage_value;
+    uint8_t percentage_value;
+
     uint32_t adc_resolution;
 
     adc_channel_t soc_channel;
@@ -31,6 +33,6 @@ typedef struct
 
 SOC_t *SOC_init(void);
 esp_err_t destroy_SOC(SOC_t *soc);
-float read_StateOfCharge(SOC_t *soc);
+uint8_t read_StateOfCharge(SOC_t *soc);
 
 #endif // __SOC_H__

@@ -10,14 +10,19 @@
 #include "freertos/task.h"
 #include "esp_event.h"
 /* User Libraries */
-#include "leds.h"
 #include "SOC.h"
+#include "leds.h"
 #include "acc_gyr.h"
 #include "iot_servo.h"
 #include "MX1508.h"
 
-/*********************************************************************************/
+
+/*********************************** DEBUGS DEFINES ***********************************/
+
 // #define CHIP_INFO
+// #define DEBUG_MEMORY
+
+/*************************************************************************************/
 
 #ifdef CHIP_INFO
 #   include "esp_chip_info.h"
@@ -25,9 +30,25 @@
 #   include "esp_flash.h"
 #endif
 
-static const char *TAG = "DriftCar";
-static const char *VERSION = "0.0.0";
-static uint8_t broadcast_mac[ESP_NOW_ETH_ALEN] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+/*********************************** GLOBAL VARIABLES ***********************************/
+
+// Project TAG and Version
+const char *TAG = "DriftCar";
+const char *VERSION = "0.0.0";
+
+// TaskHandle for all Task activities
+TaskHandle_t StateOfChargeHandler = NULL;
+
+// Tasks structs
+SOC_t *soc = NULL;
+
+uint8_t broadcast_mac[ESP_NOW_ETH_ALEN] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+/***************************************************************************************/
+
+
+/*********************************** GLOBAL FUNCTIONS ***********************************/
 
 void app_main(void);
 
@@ -36,12 +57,15 @@ static void espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_t status
 static void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len);
 
 /* Test functions */
+void StateOFCharge_Update(void *arg);
 void led_test(void *arg);
 void mpu_test(void *arg);
-void SOC_test(void *arg);
 void servo_test(void *arg);
 void motor_test(void *arg);
 void espnow_test(void *arg);
+
+/*****************************************************************************************/
+
 
 void app_main(void)
 {
@@ -71,15 +95,44 @@ void app_main(void)
     fflush(stdout);
 #endif
 
+    /* Initialize all tasks structs */
+    soc = SOC_init();
+
     // xTaskCreatePinnedToCore(&led_test, "led_test", 4096, NULL, 3, NULL, 1);
     // xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 3, NULL, 1);
-    xTaskCreatePinnedToCore(&SOC_test, "SOC_test", 4096, NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(StateOFCharge_Update, "StateOFCharge_Update", 800, (void *)soc, 3, &StateOfChargeHandler, 1);
     // xTaskCreatePinnedToCore(&servo_test, "sds", 4096, NULL, 5, NULL, 1);
     // xTaskCreatePinnedToCore(&motor_test, "motor", 4096, NULL, 5, NULL, 1);
     // xTaskCreatePinnedToCore(&espnow_test, "wifi", 4096, NULL, 5, NULL, 0);
+
+#ifdef DEBUG_MEMORY
+    while (true)
+    {
+        vTaskDelay(pdMS_TO_TICKS(500));
+        // Print out remaing stack memory (words)
+        printf("High waater mark (words): \r\n");
+        printf("%u\r\n", uxTaskGetStackHighWaterMark(StateOfChargeHandler));
+
+        // Print out number of free heap memory bytes before malloc
+        printf("Heap before malloc (bytes): \r\n");
+        printf("%lld\r\n", (uint64_t)xPortGetFreeHeapSize());
+    }
+#endif
 }
 
-/* Core 0 */
+/* Core 1 */
+void StateOFCharge_Update(void *arg)
+{
+    SOC_t *_soc = (SOC_t *)arg; 
+
+    while (true)
+    {
+        read_StateOfCharge(_soc);
+        vTaskDelay(pdMS_TO_TICKS(250));
+    }
+}
+
+
 void led_test(void *arg)
 {
     uint32_t i = 0;
@@ -189,33 +242,6 @@ void mpu_test(void *arg)
         // ESP_LOGI(TAG, "heading: %2.3f°, pitch: %2.3f°, roll: %2.3f°, Temp %2.3f°C", heading, pitch, roll, temp);
 
         // println();
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
-
-void SOC_test(void *arg)
-{
-    SOC_t *soc = SOC_init();
-    // const int SAMPLES = 50;
-    // const float CALIBRATION_FACTOR = 1.068;
-
-    while (true)
-    {
-    //     for (int i = 0; i < SAMPLES; i++)
-    //         val += adc1_get_raw(SOC_ADC_CHANNEL);
-    //     val /= SAMPLES;
-
-    //     uint16_t v = val;
-    //     // uint16_t v = (uint16_t)~adc1_get_raw(SOC_ADC_CHANNEL) & 0b0000111111111111;
-    //     // uint16_t v = (uint16_t)adc1_get_raw(SOC_ADC_CHANNEL);
-    //     float vol = ((v * 8.4) / 4095.0) * CALIBRATION_FACTOR;
-    //     uint8_t por = (int)((vol * 100) / 8.4);
-
-    //     printf("Read: %d\r\n", v);
-    //     printf("Volt: %.2f\r\n", vol);
-    //     printf("Porc: %d\r\n", por);
-    //     println();
-        read_StateOfCharge(soc);
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
@@ -338,7 +364,7 @@ void motor_test(void *arg)
     }
 }
 
-/* Core 1 */
+/* Core 0 */
 void espnow_test(void *arg)
 {
     esp_err_t ret = nvs_flash_init();
