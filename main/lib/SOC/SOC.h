@@ -1,8 +1,6 @@
 #ifndef __SOC_H__
 #define __SOC_H__
 
-#pragma once
-
 #include "esp_adc/adc_oneshot.h"
 #include "driver_defs.h"
 
