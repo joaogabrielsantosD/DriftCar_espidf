@@ -19,6 +19,7 @@ SOC_t *SOC_init()
 
     read_StateOfCharge(&soc_conf);
 
+    ESP_LOGI(TAG, "ADC CONFIGURATION SUCESS, CHANNEL: %d\r\n", soc_conf.soc_channel);
     return &soc_conf;
 }
 
