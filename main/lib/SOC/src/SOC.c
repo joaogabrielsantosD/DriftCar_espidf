@@ -1,5 +1,6 @@
 #include "SOC.h"
 
+static const char *TAG = "State_Of_Charge";
 static SOC_t soc_conf = {0};
 
 SOC_t *SOC_init()
