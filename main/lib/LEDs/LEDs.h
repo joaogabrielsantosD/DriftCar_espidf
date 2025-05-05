@@ -31,7 +31,6 @@
 #define LED_ON(GPIO)    on_led(GPIO)
 #define LED_OFF(GPIO)   off_led(GPIO)
 
-typedef esp_err_t (*LED_function)(gpio_num_t);
 
 typedef struct
 {
