@@ -1,0 +1,27 @@
+menu "Drift Car Configuration"
+    menu "Debug Options"
+        config CHIP_INFO
+            bool "Mostrar informações do chip"
+            help 
+                Seleciona o modo debug para ver a descrição do microcontrolador
+
+        config DEBUG_MEMORY
+            bool "Mostrar uso de memória"
+            help 
+                Seleciona o modo debug para ver o uso de memoria de uma task
+    endmenu
+
+    menu "SOC Configuration"
+        config DRIFT_CAR_ADC_SAMPLES
+            int "samples da leitura ADC"
+            default 25
+            range 1 100
+            help
+                Quantidade de leituras para o filtro da leitura ADC
+
+            config DRIFT_CAR_ADC_DEBUG_VALUE
+                    bool "Mostrar dados da bateria"
+                    help 
+                        Mostra os dados aquisitados da bateria
+    endmenu
+endmenu

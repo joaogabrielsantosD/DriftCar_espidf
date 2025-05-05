@@ -6,42 +6,20 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_event.h"
 /* User Libraries */
-#include "SOC.h"
-#include "leds.h"
-#include "acc_gyr.h"
+#include "DriftCar.h"
+#include "LEDs.h"
+#include "ACC.h"
 #include "iot_servo.h"
 #include "MX1508.h"
-
-
-/*********************************** DEBUGS DEFINES ***********************************/
-
-// #define CHIP_INFO
-// #define DEBUG_MEMORY
-
-/*************************************************************************************/
-
-#ifdef CHIP_INFO
-#   include "esp_chip_info.h"
-#   include "esp_system.h"
-#   include "esp_flash.h"
-#endif
-
 
 /*********************************** GLOBAL VARIABLES ***********************************/
 
 // Project TAG and Version
-const char *TAG = "DriftCar";
-const char *VERSION = "0.0.0";
+static const char TAG[] = "DriftCar";
+static const char VERSION[] = "0.0.0";
 
-// TaskHandle for all Task activities
-TaskHandle_t StateOfChargeHandler = NULL;
-
-// Tasks structs
-SOC_t *soc = NULL;
+static DriftCar_ctx_t *DriftCar;
 
 uint8_t broadcast_mac[ESP_NOW_ETH_ALEN] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -50,14 +28,11 @@ uint8_t broadcast_mac[ESP_NOW_ETH_ALEN] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 /*********************************** GLOBAL FUNCTIONS ***********************************/
 
-void app_main(void);
-
 /* Callbacks */
 static void espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_t status);
 static void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len);
 
 /* Test functions */
-void StateOFCharge_Update(void *arg);
 void led_test(void *arg);
 void mpu_test(void *arg);
 void servo_test(void *arg);
@@ -69,69 +44,30 @@ void espnow_test(void *arg);
 
 void app_main(void)
 {
+    esp_log_level_set(TAG, ESP_LOG_INFO);
     ESP_LOGI(TAG, "Project Version: %s", VERSION);
 
-#ifdef CHIP_INFO
-    /* Get Chip Information */
-    esp_chip_info_t chip_info;
-    uint32_t flash_size;
-    esp_chip_info(&chip_info);
-
-    printf("This is %s chip with %d CPU core(s), %s%s%s%s, ",
-           CONFIG_IDF_TARGET,
-           chip_info.cores,
-           (chip_info.features & CHIP_FEATURE_WIFI_BGN) ? "WiFi/" : "",
-           (chip_info.features & CHIP_FEATURE_BT) ? "BT" : "",
-           (chip_info.features & CHIP_FEATURE_BLE) ? "BLE" : "",
-           (chip_info.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)" : "");
-    unsigned major_rev = chip_info.revision / 100;
-    unsigned minor_rev = chip_info.revision % 100;
-    printf("silicon revision v%d.%d, ", major_rev, minor_rev);
-    if (esp_flash_get_size(NULL, &flash_size) != ESP_OK)
-        printf("Get flash size failed");
-    printf("%" PRIu32 "MB %s flash\n", flash_size / (uint32_t)(1024 * 1024),
-           (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-    printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
-    fflush(stdout);
+#if CONFIG_CHIP_INFO
+    SHOW_CHIP_INFO();
 #endif
 
-    /* Initialize all tasks structs */
-    soc = SOC_init();
+    DriftCar = driftcar_create_app();
 
     // xTaskCreatePinnedToCore(&led_test, "led_test", 4096, NULL, 3, NULL, 1);
     // xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 3, NULL, 1);
-    xTaskCreatePinnedToCore(StateOFCharge_Update, "StateOFCharge_Update", 800, (void *)soc, 3, &StateOfChargeHandler, 1);
     // xTaskCreatePinnedToCore(&servo_test, "sds", 4096, NULL, 5, NULL, 1);
     // xTaskCreatePinnedToCore(&motor_test, "motor", 4096, NULL, 5, NULL, 1);
     // xTaskCreatePinnedToCore(&espnow_test, "wifi", 4096, NULL, 5, NULL, 0);
 
-#ifdef DEBUG_MEMORY
+#if CONFIG_DEBUG_MEMORY
     while (true)
     {
         vTaskDelay(pdMS_TO_TICKS(500));
-        // Print out remaing stack memory (words)
-        printf("High waater mark (words): \r\n");
-        printf("%u\r\n", uxTaskGetStackHighWaterMark(StateOfChargeHandler));
-
-        // Print out number of free heap memory bytes before malloc
-        printf("Heap before malloc (bytes): \r\n");
-        printf("%lld\r\n", (uint64_t)xPortGetFreeHeapSize());
+        TaskHandle_t handler = soc_task_handler(); // Call your task handler to see the memory management
+        SHOW_TASK_MEMORY(handler);
     }
 #endif
 }
-
-/* Core 1 */
-void StateOFCharge_Update(void *arg)
-{
-    SOC_t *_soc = (SOC_t *)arg; 
-
-    while (true)
-    {
-        read_StateOfCharge(_soc);
-        vTaskDelay(pdMS_TO_TICKS(250));
-    }
-}
-
 
 void led_test(void *arg)
 {

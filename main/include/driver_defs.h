@@ -7,6 +7,7 @@
 #include "esp_timer.h"
 #include "math.h"
 #include "driver/ledc.h"
+#include "DEBUG_SYSTEM.h"
 
 // EEPROM storage
 #include "nvs_flash.h"
@@ -20,6 +21,9 @@
 #define println() (printf("\r\n"))
 #define delay(ms) (vTaskDelay(pdMS_TO_TICKS(ms)))
 #define millis()  (esp_timer_get_time() / 1000)
+
+#define SHOW_CHIP_INFO()         print_info()
+#define SHOW_TASK_MEMORY(HANDLE) print_memory(&HANDLE)
 
 /* LEDC defines */
 #define SPEED_MODE       LEDC_LOW_SPEED_MODE

@@ -1,6 +1,7 @@
 .devcontainer
 .vscode
 build
-sdkconfig
+# sdkconfig
 *.ci
 *.old
+.cache
