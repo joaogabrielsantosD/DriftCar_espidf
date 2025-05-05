@@ -4,6 +4,7 @@ static const char TAG[] = "State_Of_Charge";
 static const char TASK_TAG[] = "SOC_TASK";
 
 static soc_handle_t soc_config;
+static const uint32_t adc_resolution = (1UL << SOC_WIDTH) - 1;
 static TaskHandle_t soc_task_handle = NULL;
 
 static void state_of_charge_task(void *arg);
@@ -12,7 +13,6 @@ static void state_of_charge_task(void *arg);
 soc_handle_t *soc_create()
 {
     esp_log_level_set(TAG, ESP_LOG_VERBOSE);
-    soc_config.adc_resolution = (1UL << SOC_WIDTH) - 1;
 
     adc_oneshot_unit_init_cfg_t unit_config = {.unit_id = SOC_ADC_UNIT};
 
@@ -54,7 +54,7 @@ uint8_t soc_read(soc_handle_t *handle)
     }
     out /= CONFIG_DRIFT_CAR_ADC_SAMPLES;
 
-    handle->voltage_value = ((float)out / handle->adc_resolution) * VREF;
+    handle->voltage_value = ((float)out / adc_resolution) * VREF;
     // t2 = t2 * ((R1 + R2) / R2);
 
     if (handle->voltage_value >= VREF)

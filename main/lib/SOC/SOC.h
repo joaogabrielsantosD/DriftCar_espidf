@@ -23,8 +23,6 @@ typedef struct {
     float voltage_value;
     uint8_t percentage_value;
 
-    uint32_t adc_resolution;
-
     adc_oneshot_unit_handle_t adc1_handle;
 } soc_handle_t;
 

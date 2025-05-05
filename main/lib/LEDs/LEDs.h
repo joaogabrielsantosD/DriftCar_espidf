@@ -5,21 +5,31 @@
 #include "driver_defs.h"
 #include "driver/gpio.h"
 
-/* GPIO defines */
-#define GPIO_MODE      GPIO_MODE_INPUT_OUTPUT
-#define PULLUP_MODE    GPIO_PULLUP_DISABLE
-#define PULLDOWN_MODE  GPIO_PULLDOWN_DISABLE
-#define GPIO_INTR_TYPE GPIO_INTR_DISABLE
+// GPIO defines
+#define LED_GPIO_MODE      GPIO_MODE_INPUT_OUTPUT
+#define LED_PULLUP_MODE    GPIO_PULLUP_DISABLE
+#define LED_PULLDOWN_MODE  GPIO_PULLDOWN_DISABLE
+#define LED_GPIO_INTR_TYPE GPIO_INTR_DISABLE
 
-/* LEDs timers and channels */
-#define FREQ_LED       1000 // 1kHz
-#define LED_TIMER      LEDC_TIMER_0
-#define LED_RESOLUTION LEDC_TIMER_16_BIT
+// LEDC defines
+#define LED_SPEED_MODE     LEDC_LOW_SPEED_MODE
+#define LED_LEDC_CLOCK     LEDC_AUTO_CLK
+#define LED_LEDC_INTR_TYPE LEDC_INTR_DISABLE
 
-#define BRAKE_CHANNEL  LEDC_CHANNEL_0
-// #define RED_CHANNEL      LEDC_CHANNEL_1 <----- DEPRECATED
-// #define GREEN_CHANNEL    LEDC_CHANNEL_2 <----- DEPRECATED
-// #define BLUE_CHANNEL     LEDC_CHANNEL_3 <----- DEPRECATED
+// PWM defines
+#define LED_FREQ           CONFIG_DRIFT_CAR_LED_FREQUENCY
+#define LED_TIMER          LEDC_TIMER_0
+#define LED_RESOLUTION     LEDC_TIMER_16_BIT
+
+// LEDs PWM channels
+#define BRAKE_CHANNEL      LEDC_CHANNEL_0
+// #define RED_CHANNEL     LEDC_CHANNEL_1 <----- DEPRECATED
+// #define GREEN_CHANNEL   LEDC_CHANNEL_2 <----- DEPRECATED
+// #define BLUE_CHANNEL    LEDC_CHANNEL_3 <----- DEPRECATED
+
+#define LED_BLINK(GPIO) blinky_led(GPIO)
+#define LED_ON(GPIO)    on_led(GPIO)
+#define LED_OFF(GPIO)   off_led(GPIO)
 
 typedef esp_err_t (*LED_function)(gpio_num_t);
 
@@ -34,24 +44,10 @@ typedef struct
     /* Channels */
     ledc_channel_t brake_channel;
 
-    /* Resolution */
-    ledc_timer_bit_t duty_resolution;
+} led_handle_t;
 
-    /* GPIO Configuration */
-    gpio_config_t LED_config;
-    ledc_timer_config_t LEDs_ledc_timer;
-    ledc_channel_config_t brake_ledc_channel;
-
-    /* Funções */
-    LED_function blinky;
-    LED_function on;
-    LED_function off;
-
-} LEDs_t;
-
-LEDs_t *config_LEDs(void);
-void brake_on(LEDs_t *leds);
-void brake_off(LEDs_t *leds);
-esp_err_t update_brake_duty(LEDs_t *leds, uint32_t duty);
+led_handle_t *led_create(void);
+void led_brake_on(led_handle_t *handle);
+void led_brake_off(led_handle_t *handle);
 
 #endif // LEDS_H

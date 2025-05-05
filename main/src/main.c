@@ -33,7 +33,6 @@ static void espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_t status
 static void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len);
 
 /* Test functions */
-void led_test(void *arg);
 void mpu_test(void *arg);
 void servo_test(void *arg);
 void motor_test(void *arg);
@@ -53,7 +52,6 @@ void app_main(void)
 
     DriftCar = driftcar_create_app();
 
-    // xTaskCreatePinnedToCore(&led_test, "led_test", 4096, NULL, 3, NULL, 1);
     // xTaskCreatePinnedToCore(&mpu_test, "sfg", 4096, NULL, 3, NULL, 1);
     // xTaskCreatePinnedToCore(&servo_test, "sds", 4096, NULL, 5, NULL, 1);
     // xTaskCreatePinnedToCore(&motor_test, "motor", 4096, NULL, 5, NULL, 1);
@@ -67,63 +65,6 @@ void app_main(void)
         SHOW_TASK_MEMORY(handler);
     }
 #endif
-}
-
-void led_test(void *arg)
-{
-    uint32_t i = 0;
-    uint8_t state = 0;
-    LEDs_t *leds = config_LEDs();
-    // LEDs_t leds = *(LEDs_t*)arg;
-
-    while (true)
-    {
-        switch (state)
-        {
-            case 0:
-            {
-                printf("State 0: %ld\r\n", i);
-                leds->blinky(leds->HEADLIGHT_PIN);
-                leds->blinky(leds->RIGHT_PIN);
-                leds->blinky(leds->LEFT_PIN);
-        
-                update_brake_duty(leds, i);
-        
-                i += 255;
-                if (i >= (1UL << leds->duty_resolution))
-                {
-                    i = 0;
-                    state++;
-                }
-                vTaskDelay(pdMS_TO_TICKS(100));
-                break;
-            }
-
-            case 1:
-            {                
-                printf("State 1\r\n");
-                leds->on(leds->HEADLIGHT_PIN);
-                leds->on(leds->RIGHT_PIN);
-                leds->on(leds->LEFT_PIN);
-                brake_on(leds);
-                vTaskDelay(pdMS_TO_TICKS(2000));
-                state++;
-                break;
-            }
-
-            case 2:
-            {
-                printf("State 2\r\n");
-                leds->off(leds->HEADLIGHT_PIN);
-                leds->off(leds->RIGHT_PIN);
-                leds->off(leds->LEFT_PIN);
-                brake_off(leds);
-                vTaskDelay(pdMS_TO_TICKS(2000));
-                state = 0;
-                break;
-            }
-        }
-    }
 }
 
 void mpu_test(void *arg)

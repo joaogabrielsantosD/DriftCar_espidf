@@ -24,4 +24,13 @@ menu "Drift Car Configuration"
                     help 
                         Mostra os dados aquisitados da bateria
     endmenu
+
+    menu "LED Configuration"
+        config DRIFT_CAR_LED_FREQUENCY
+            int "Frequencia PWM"
+            default 5000
+            range 5000 10000
+            help
+                Frequencia para o PWM da luz de freio
+    endmenu
 endmenu

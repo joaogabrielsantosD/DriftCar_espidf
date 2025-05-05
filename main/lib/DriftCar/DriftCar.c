@@ -8,5 +8,9 @@ DriftCar_ctx_t *driftcar_create_app(void)
     ctx.soc_handle = soc_create();
     soc_start_task(ctx.soc_handle);
 
+    /* Init the LED feature */
+    ctx.led_handle = led_create();
+    led_brake_off(ctx.led_handle);
+
     return &ctx;
 }

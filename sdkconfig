@@ -423,6 +423,12 @@ CONFIG_PARTITION_TABLE_MD5=y
 CONFIG_DRIFT_CAR_ADC_SAMPLES=25
 # CONFIG_DRIFT_CAR_ADC_DEBUG_VALUE is not set
 # end of SOC Configuration
+
+#
+# LED Configuration
+#
+CONFIG_DRIFT_CAR_LED_FREQUENCY=5000
+# end of LED Configuration
 # end of Drift Car Configuration
 
 #

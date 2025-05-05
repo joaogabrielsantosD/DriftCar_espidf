@@ -25,11 +25,6 @@
 #define SHOW_CHIP_INFO()         print_info()
 #define SHOW_TASK_MEMORY(HANDLE) print_memory(&HANDLE)
 
-/* LEDC defines */
-#define SPEED_MODE       LEDC_LOW_SPEED_MODE
-#define LEDC_CLOCK       LEDC_AUTO_CLK
-#define LEDC_INTR_TYPE   LEDC_INTR_DISABLE
-
 /* Motor timers and channels */
 #define MOTOR_MAX_RPM    8700 // in 5 volts
 #define MOTOR_TIMER      LEDC_TIMER_1
