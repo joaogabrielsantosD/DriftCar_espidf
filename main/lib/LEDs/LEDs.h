@@ -19,7 +19,7 @@
 // PWM defines
 #define LED_FREQ           CONFIG_DRIFT_CAR_LED_FREQUENCY
 #define LED_TIMER          LEDC_TIMER_0
-#define LED_RESOLUTION     LEDC_TIMER_16_BIT
+#define LED_RESOLUTION     LEDC_TIMER_8_BIT
 
 // LEDs PWM channels
 #define BRAKE_CHANNEL      LEDC_CHANNEL_0
